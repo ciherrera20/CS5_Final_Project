@@ -1,177 +1,187 @@
 GlowScript 3.0 VPython
 
-scene.background = color.cyan
-scene.width = 640                      # Make the 3D canvas larger
-scene.height = 480
+#Bugs?!? Why can't I use the '+' sign?!? bruhhhhhh
+
 scene.bind('keydown', keydown_fun)     # Function for key presses
-scene.bind('keyup', keyup_fun)     # Function for key presses
+scene.background = 0.8*vec(0, .9, 1)    # Light gray (0.8 out of 1.0)
+scene.lights = []
 
-# +++ Start of object creation -- Create the blocks making up the world and the player
-
-# Represents the blocks that makeup the world
 class Block:
     scale = 1
-    color_map = {"dirt": vec(127 / 255, 92 / 255, 7 / 255), "grass": color.green, "stone": 0.5 * vec(1, 1, 1)}
-    blocks = {}
-    def __init__(self, pos, block_type):
-        # Align the block to a grid
+    texture_map = {"dirt": texture = "https://lh3.googleusercontent.com/DpmqnZGty6vns7713z1kTAp3AwBqrZ5ZYz_jf-x04p3lFfQ3Q9j5KruZ-v81846PtM1A9HMHvxQkPpoOqViuvA=s400", 
+                 "stone": texture = "https://art.pixilart.com/df108d01cd72892.png",
+                 "lava": texture = "https://qph.fs.quoracdn.net/main-qimg-5691a6bcf4bd21df68e741ee1d9d4e0f",
+                 "water": texture = "https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcR-ErVpce1X6Y7Z4bYIK9PJfLL4hh_R9nvbFg&usqp=CAU",
+                 "wood": texture = "https://lh3.googleusercontent.com/Sm5RI4dsQZxXHNQfpEBZZwbnuv_nUqNeSXMlpLSfdJC8mGb7REfYBLUNxiyZYTeXmOo-YkdWAGLBnuUj6-iHCA=s400",
+                 "leaf": texture = "https://lh3.googleusercontent.com/proxy/L6-lYfQf-eINxjeFyohQ85kBX61qetzYPdU9NmXHuvC5y7SLeW1KDd6ccUB5G8iuBc55hYQe5O3nRNqoVWL4FGNayWhgvsT9",
+                 "grass": texture = "https://lh3.googleusercontent.com/0Xh1P9-7QIXw2j-TM5lGIo5Vvtkq3UIwynD04RgngIOU-4KOy06ZONL93Ht4YyCXEVXojj5Xn-H1m6NHC4rmW-g=s400"}
+                 
+    def __init__(self, pos, type):
         self.pos = vec(0, 0, 0)
-        self.pos.x = floor(pos.x) * Block.scale + Block.scale / 2
-        self.pos.y = floor(pos.y) * Block.scale + Block.scale / 2
-        self.pos.z = floor(pos.z) * Block.scale + Block.scale / 2
-
-        self.block_type = block_type
-        if block_type != "air":
-            # Create block model
-            self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = Block.color_map[block_type])
-
-        # Add the block to the map, or if its an air block, just remove the previous block
-        key = (floor(pos.x), floor(pos.y), floor(pos.z))
-        if key in Block.blocks:
-            oldBlock = Block.blocks[key]
-            oldBlock.visible = False
-            del oldBlock
-            del Block.blocks[key]
-        if block_type != "air":
-            Block.blocks[key] = self
-    
-    def __repr__(self):
-        return self.block_type + "block"
-
-player = box(size = vec(Block.scale, Block.scale * 2, Block.scale), pos = vec(0, Block.scale, 0), color = color.black)
-player.vel = vec(0, 0, 0)     # this is its initial velocity
-tpPlayer(vec(4.5, 5, 4.5))
-
-for x in range(10):
-    for y in range(5):
-        if 5 - y == 1:
-            block_type = "grass"
-        elif 5 - y < 4:
-            block_type = "dirt"
+        self.pos.x = floor(pos.x) * Block.scale
+        self.pos.y = floor(pos.y) * Block.scale
+        self.pos.z = floor(pos.z) * Block.scale
+        self.type = type
+        self.emissive = True
+        
+        #Because we can't compound objects with textures, blocks specifically for grass, but not sure if we want this
+        if type == "grass":
+            self.pos.y = self.pos.y + (Block.scale*(4/10))
+            self.model = box(size = vec(Block.scale, Block.scale*(1/5), Block.scale), pos = self.pos, texture = Block.texture_map["grass"], emissive = True)
+            self.pos.y = self.pos.y - (Block.scale*(4/10)) - (Block.scale*(1/10))
+            self.model = box(size = vec(Block.scale, Block.scale*(4/5), Block.scale), pos = self.pos, texture = Block.texture_map["dirt"], emissive = True)
         else:
-            block_type = "stone"
-        for z in range(10):
-            Block(vec(x, y, z), block_type)
+            self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, texture = Block.texture_map[type], emissive = True)
+        
 
-# +++ Start of game loop section -- update the position of the player and other entities continuously
+cube = box(pos = vec(0, 0, 0), axis = vec(1, 0, 0), size = vec(1, 1, 1), opacity=0.5, color = color.yellow)
+d = {}
+count = 0
 
-# Other constants
-RATE = 30                # The number of times the while loop runs each second
-dt = 1.0 / (1.0 * RATE)      # The time step each time through the while loop
-scene.autoscale = False  # Avoids changing the view automatically
-scene.forward = vec(0, -3, -2)  # Ask for a bird's-eye view of the scene...
-friction_coef = 0.3
-max_vel = 10 * Block.scale * vec(1, 2, 1)
-accel = 3 * Block.scale
-# gravity = -9.8 * Block.scale
-gravity = 0
-controls = {control: False for control in ["up", "down", "left", "right"]}
 
-# This is the "event loop" or "animation loop"
-# Each pass through the loop will animate one step in time, dt
-#
-while True:
-    rate(RATE)                             # maximum number of times per second the while loop runs
 
-    # +++ Start of PHYSICS UPDATES -- update all velocities and positions here, every time step
+#island
+for x in range(7):
+    for y in range(3):
+        for z in range(3):
+            d[vec(x,-y,z)] = Block(vec(x, -y, z), "dirt")
+for x in range(3):
+    for y in range(3):
+        for z in range(1,4):
+            d[vec(x,-y,-z)] = Block(vec(x, -y, -z), "dirt")
+#tree
+for y in range(1,5):
+    d[vec(1,y,-2)] = Block(vec(1, y, -2), "wood")
+for x in range(3):
+    for y in range(3,6):
+        for z in range(-3,0):
+            print(x,y,z)
+            d[vec(x,y,z)] = Block(vec(x, y, z), "leaf")
 
-    if controls['up']:
-        player.vel.z -= accel
-    elif controls['down']:
-        player.vel.z += accel
-    else:
-        player.vel.z *= friction_coef
 
-    if controls['right']:
-        player.vel.x += accel
-    elif controls['left']:
-        player.vel.x -= accel
-    else:
-        player.vel.x *= friction_coef
-    
-    player.vel.y += gravity * dt
-
-    player.vel.x = clamp(player.vel.x, max_vel.x, -max_vel.x)
-    player.vel.y = clamp(player.vel.y, max_vel.y, -max_vel.y)
-    player.vel.z = clamp(player.vel.z, max_vel.z, -max_vel.z)
-    player.pos = player.pos + player.vel * dt
-    scene.center = player.pos
-
-    standing_on = blockAt(nearestBlock() - vec(0, 1, 0))
-    print(standing_on.block_type)
-
-# +++ Start of EVENT_HANDLING section -- separate functions for keypresses and mouse clicks...
-
-controls = {control: False for control in ["up", "down", "left", "right"]}
-
-def keyup_fun(event):
-    """This function is called each time a key is released."""
-    key = event.key
-    if key == 'up' or key in 'wWiI':
-        controls['up'] = False
-    elif key == 'left' or key in 'aAjJ':
-        controls['left'] = False
-    elif key == 'down' or key in 'sSkK':
-        controls['down'] = False
-    elif key == 'right' or key in "dDlL":
-        controls['right'] = False
 
 def keydown_fun(event):
-    """This function is called each time a key is released."""
+    """This function is called each time a key is pressed."""
+    # ball.color = randcolor()  # this turns out to be very distracting!
     key = event.key
-    if key == 'up' or key in 'wWiI':
-        controls['up'] = True
-    elif key == 'left' or key in 'aAjJ':
-        controls['left'] = True
-    elif key == 'down' or key in 'sSkK':
-        controls['down'] = True
-    elif key == 'right' or key in "dDlL":
-        controls['right'] = True
+    print("key:", key)  # Prints the key pressed -- caps only...
+    
+    if key == 'up':
+        cube.pos = cube.pos + vec(-1, 0, 0)
+    elif key == 'left':
+        cube.pos = cube.pos + vec(0, 0, 1)
+    elif key == 'down':
+        cube.pos = cube.pos + vec(1, 0, 0)
+    elif key == 'right':
+        cube.pos = cube.pos + vec(0, 0, -1)
+    elif key in 'Ww':
+        cube.pos = cube.pos + vec(0, 1, 0)
+    elif key in 'Ss':
+        cube.pos = cube.pos + vec(0, -1, 0)
+    elif key in 'Mm':
+        print(d[cube.pos].type)
+        mine(cube)
+    elif key in 'Pp':
+        water(cube)
+    elif key in 'Ll':
+        lava(cube)
 
-# def click_fun(event):
-#     """This function is called each time the mouse is clicked."""
-#     print("event is", event.event, event.which)
+def mine(cube):
+    if cube.pos not in d:
+        print("Cannot mine")
+    if d[cube.pos].type == "stone":
+        count = 1
+        d[cube.pos].model.visible = False
+        #time-delay?!?!?!?!?
+        d[cube.pos] = Block(cube.pos,"stone")
+    else:
+        d[cube.pos].model.visible = False
 
-# +++ Start of utility functions
-
-def clamp(value, upper, lower = None):
-    """ Clamps a value to within the range [-upper, upper] or, if lower is specified, [lower, upper]
-        If the given value for lower is greater than the value for upper (or if only upper is given and it is negative),
-        for any value given within [upper, lower], the closer of the two endpoints is returned.
-        Although this function is valid python, there seems to be a bug in VPython where I have to give a lower value
-        or I get an error message.
-    """
-    if lower == None:
-        lower = -upper
-    if lower > upper:
-        mid = (lower + upper) / 2
-        if value < upper or value > lower:
-            return value
-        elif value < mid:
-            return upper
+#places water and flows
+def water(cube):
+    if cube.pos not in d or d[cube.pos].model.visible == True:
+        print("You cannot place water here")
+        return 0
+        
+    cubeW = Block(cube.pos, "water")
+    x = cube.pos.x
+    y = cube.pos.y
+    z = cube.pos.z
+ 
+    #checks the surrounding blocks
+    for i in range(20):
+        if d[vec(x, y-1,z)].model.visible == False:
+            d[vec(x,y-1,z)] = Block(vec(x, y-1,z), "water")
+            y = y - 1
+        elif d[vec((x+1), y, z)].model.visible == False:
+            d[vec(x+1,y,z)] = Block(vec(x+1, y,z), "water")
+            x += 1
+            print(x)
+        elif d[vec(x-1, y, z)].model.visible == False:
+            d[vec(x-1,y,z)] = Block(vec(x-1, y,z), "water")
+            x = x - 1
+        elif d[vec(x, y,(z+1))].model.visible == False:
+            d[vec(x,y,z+1)] = Block(vec(x, y,z+1), "water")
+            z += 1
+            print(z)
+        elif d[vec(x, y, z-1)].model.visible == False:
+            d[vec(x,y,z-1)] = Block(vec(x, y,z-1), "water")
+            z = z - 1
         else:
-            return lower
-    return min(max(value, lower), upper)
+            break
 
-def tpPlayer(new_pos):
-    """Teleport the player so that their lower half occupies the block with the given position"""
-    player.pos.x = new_pos.x * Block.scale + Block.scale / 2
-    player.pos.y = new_pos.y * Block.scale + Block.scale
-    player.pos.z = new_pos.z * Block.scale + Block.scale / 2
-    scene.center = player.pos
+#placement of lava and making stone
+def lava(cube):
+    if cube.pos not in d or d[cube.pos].model.visible == True:
+        print("You cannot place lava here")
+        return 0
+    
+    cubeW = Block(cube.pos, "lava")
+    x = cube.pos.x
+    y = cube.pos.y
+    z = cube.pos.z
+    
+    blocksAround(cube,"water","stone")
+    
 
-def nearestBlock():
-    """Return the position of the nearest block to the player's lower half"""
-    block_pos = vec(0, 0, 0)
-    block_pos.x = round((player.pos.x - Block.scale / 2) / Block.scale)
-    block_pos.y = round((player.pos.y - Block.scale) / Block.scale)
-    block_pos.z = round((player.pos.z - Block.scale / 2) / Block.scale)
-    return block_pos
+#checks the blocks around cube.pos and creates a specified block type
+def blocksAround(cube,detect,create):
+    x = cube.pos.x
+    y = cube.pos.y
+    z = cube.pos.z
+    
+    if d[vec(x, y-1,z)].type == detect:
+        d[vec(x,y-1,z)].model.visible = False
+        d[vec(x,y-1,z)] = Block(vec(x, y-1,z), create)
+    elif d[vec((x+1), y, z)].type == detect:
+        d[vec(x+1,y,z)].model.visible = False
+        d[vec(x+1,y,z)] = Block(vec(x+1, y,z), create)        
+    elif d[vec(x-1, y, z)].type == detect:
+        d[vec(x-1,y,z)].model.visible = False
+        d[vec(x-1,y,z)] = Block(vec(x-1, y,z), create)
+    elif d[vec(x, y,(z+1))].type == detect:
+        d[vec(x,y,z+1)].model.visible = False
+        d[vec(x,y,z+1)] = Block(vec(x, y,z+1), create)
+    elif d[vec(x, y, z-1)].type == detect:
+        d[vec(x,y,z-1)].model.visible = False
+        d[vec(x,y,z-1)] = Block(vec(x, y,z-1), create)
+    
+    
+"""
+island with aesthetics?
+for x in range(7):
+    for y in range(1,3):
+        for z in range(3):
+            d[vec(x,0,z)] = Block(vec(x, 0, z), "grass")
+            d[vec(x,-y,z)] = Block(vec(x, -y, z), "dirt")
+for x in range(3):
+    for y in range(1,3):
+        for z in range(1,4):
+            d[vec(x,0,-z)] = Block(vec(x, 0, -z), "grass")
+            d[vec(x,-y,-z)] = Block(vec(x, -y, -z), "dirt")
+"""
+        
 
-def blockAt(pos):
-        """Return the block in the map at the give position, or None"""
-        key = (pos.x, pos.y, pos.z)
-        if key in Block.blocks:
-            return Block.blocks[key]
-        else:
-            return Block(pos, "air")
+        
+        
+        
