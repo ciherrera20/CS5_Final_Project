@@ -263,7 +263,7 @@ def blockAt(pos):
 
 def mine(pos):
     """Attempts to mine the block at the given position. If the block is not already air, it is replaced with air"""
-    block_pos = nearestBlock(pos)
+    block_pos = nearestBlock(pos, round)
     block = blockAt(block_pos)
     if block.block_type == "air":
         print("Cannot mine")
