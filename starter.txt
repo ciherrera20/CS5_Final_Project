@@ -1,4 +1,4 @@
 Christopher Herrera and Olivia Yin
 The idea for our game is to have a minecraft-style building game in which the player starts on an island in the sky, collects resources, and traverses an obstacle course to get to a goal on another island. The player be able to break blocks to collect building materials which will make it easier to get to the goal. Alternatively, they could choose to not spend time collecting resources and risk falling and dying by jumping through the obstacle course.
 
-The major features added so far are the blocks which make up the environment, as well as the ability to break those blocks.
+The major features added so far are the blocks which make up the environment, the ability to break those blocks, gravity, and collision detection and resolution between blocks and the player.

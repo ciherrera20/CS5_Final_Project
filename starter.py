@@ -3,8 +3,11 @@ GlowScript 3.0 VPython
 scene.background = color.cyan
 scene.width = 640                      # Make the 3D canvas larger
 scene.height = 480
+scene.resizable = False
 scene.bind('keydown', keydown_fun)     # Function for key presses
 scene.bind('keyup', keyup_fun)     # Function for key presses
+scene.bind('mousedown', mousedown_fun)
+scene.bind('mousemove', mousemove_fun)
 
 # +++ Start of object creation -- Create the blocks making up the world and the player
 
@@ -85,13 +88,17 @@ trunk_bottom = blockAt(vec(1, 1, -2))
 RATE = 30                # The number of times the while loop runs each second
 dt = 1.0 / (1.0 * RATE)      # The time step each time through the while loop
 scene.autoscale = False  # Avoids changing the view automatically
-scene.forward = vec(0.75, -0.65, 0)  # Ask for a bird's-eye view of the scene...
+scene.center = player.pos
+scene.forward = vec(1, 0, 0)  # Ask for a bird's-eye view of the scene...
 friction_coef = 0.3
 max_vel = 10 * Block.scale * vec(1, 2, 1)
+abs_vel = vec(0, 0, 0)
 accel = 3 * Block.scale
-gravity = -9.8 * Block.scale
-# gravity = 0
-controls = {control: False for control in ["up", "down", "left", "right", "cube_up", "cube_left", "cube_down", "cube_right"]}
+gravity = -9.8 * Block.scale * 5
+controls = {control: False for control in ["up", "down", "left", "right", "cube_up", "cube_left", "cube_down", "cube_right", "mine", "jump"]}
+player.visible = False
+scene.userspin = False
+scene.fov = pi / 2
 
 # This is the "event loop" or "animation loop"
 # Each pass through the loop will animate one step in time, dt
@@ -100,21 +107,16 @@ while True:
     rate(RATE)                             # maximum number of times per second the while loop runs
 
     # +++ Start of PHYSICS UPDATES -- update all velocities and positions here, every time step
-
-    # if controls['forward']:
-    #     player.vel.z -= accel
-    # elif controls['backward']:
-    #     player.vel.z += accel
-    # else:
-    #     player.vel.z *= friction_coef
-
-    # if controls['right']:
-    #     player.vel.x += accel
-    # elif controls['left']:
-    #     player.vel.x -= accel
-    # else:
-    #     player.vel.x *= friction_coef
     
+    # Calculate camera angle to figure out which direction to update the player's velocity in
+    camera_angle_xz = atan2(scene.forward.z, scene.forward.x)
+    if camera_angle_xz < 0:
+        camera_angle_xz += 2 * pi
+
+    # Rotate player's velocity by the camera angle to make updating it simple
+    player.vel = rotate(player.vel, angle = camera_angle_xz, axis = vec(0, 1, 0))
+
+    # Apply velocity updates in the x and z directions based on the current controls
     if controls['forward']:
         player.vel.x += accel
     elif controls['backward']:
@@ -129,13 +131,31 @@ while True:
     else:
         player.vel.z *= friction_coef
 
+    # Naive jump control
+    if controls['jump']:
+        player.vel.y = 9.8
+
+    # Apply gravity
     player.vel.y += gravity * dt
 
+    # Apply max velocity clamping
     player.vel.x = clamp(player.vel.x, max_vel.x, -max_vel.x)
     player.vel.y = clamp(player.vel.y, max_vel.y, -max_vel.y)
     player.vel.z = clamp(player.vel.z, max_vel.z, -max_vel.z)
+
+    # Rotate the velocity back in the camera's direction
+    player.vel = rotate(player.vel, angle = -camera_angle_xz, axis = vec(0, 1, 0))
+
+    # Update the player's position
     player.pos = player.pos + player.vel * dt
-    scene.center = player.pos
+
+    # Check for and resolve collisions between the player and all the blocks
+    for pos in Block.blocks:
+        resolveCollision(Block.blocks[pos].model, player)
+
+    # Only update scene.center after all the physics updates are complete to avoid chopiness in the camera
+    # scene.center = player.pos
+    scene.camera.pos = player.pos + vec(0, Block.scale / 2, 0)
 
     # +++ Start of CUBE UPDATES
 
@@ -167,11 +187,8 @@ while True:
     if controls["mine"] and cube.visible:
         mine(cube.pos)
 
-    standing_on = blockAt(nearestBlock(player.pos - vec(0, 3 * Block.scale / 2, 0), round))
+    # standing_on = blockAt(nearestBlock(player.pos - vec(0, 3 * Block.scale / 2, 0), round))
     # print(standing_on.block_type)
-
-    for pos in Block.blocks:
-        resolveCollision(Block.blocks[pos].model, player)
 
 # +++ Start of EVENT_HANDLING section -- separate functions for keypresses and mouse clicks...
 
@@ -187,6 +204,7 @@ def keydown_fun(event):
 
 def update_controls(key, pressed):
     """Updates the controls dictionary given a key string and whether it was just pressed or released"""
+    # print(key)
     if key in 'wWiI':
         controls['forward'] = pressed
     elif key in 'aAjJ':
@@ -209,6 +227,25 @@ def update_controls(key, pressed):
         controls["cube_down"] = pressed
     elif key in "qQ":
         controls["mine"] = pressed
+    elif key == " ":
+        controls["jump"] = pressed
+
+previous_mouse_pos = vec(0, 0, 0)
+def mousedown_fun(event):
+    global previous_mouse_pos
+    previous_mouse_pos = vec(event.pageX, event.pageY, 0)
+
+def mousemove_fun(event):
+    global previous_mouse_pos
+    mouse_pos = vec(event.pageX, event.pageY, 0)
+    if previous_mouse_pos:
+        delta_pos = previous_mouse_pos - mouse_pos
+        angle_x = -delta_pos.x / scene.width
+        angle_y = -delta_pos.y / scene.height
+        print(angle_x, angle_y)
+        new_forward = rotate(scene.forward, angle = angle_x, axis = scene.up)
+        scene.forward = rotate(new_forward, angle = angle_y, axis = scene.forward.cross(scene.up))
+    previous_mouse_pos = mouse_pos
 
 # def click_fun(event):
 #     """This function is called each time the mouse is clicked."""
@@ -296,12 +333,16 @@ def getCollisionManifold(boxA, boxB):
             delz = Az2 - Bz1
         else:
             delz = Az1 - Bz2
-        return (True, (delx, dely, delz))
+        # return (True, (delx, dely, delz))
+        return (True, delx, dely, delz)
     else:
-        return (False, (0, 0, 0))
+        # return (False, (0, 0, 0))
+        return (False, 0, 0, 0)
 
 def resolveCollision(boxA, boxB):
     colliding, delx, dely, delz = getCollisionManifold(boxA, boxB)
+
+    # Only resolve the collision if the two boxes are actually colliding
     if colliding:
         minDel = min(abs(delx), abs(dely), abs(delz))
         displacement = vec(delx, dely, delz)
@@ -316,4 +357,7 @@ def resolveCollision(boxA, boxB):
             displacement.z = 0
             velCorrection.z = 0
         boxB.pos += displacement
-        boxB.vel += velCorrection
+
+        # Only correct velocity if it opposes the displacement
+        if displacement.dot(velCorrection) > 0:
+            boxB.vel += velCorrection
