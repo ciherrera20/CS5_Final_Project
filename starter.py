@@ -36,11 +36,11 @@ class Block:
         if block_type != "air":
             # Create block model
             if block_type in Block.texture_map:
-                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, texture = Block.texture_map[block_type], emissive = True)
+                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, texture = Block.texture_map[block_type], emissive = True, shininess = 0)
             elif block_type in Block.color_map:
-                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = Block.color_map[block_type], emissive = True)
+                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = Block.color_map[block_type], emissive = True, shininess = 0)
             else:
-                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = color.magenta, emissive = True)
+                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = color.magenta, emissive = True, shininess = 0)
 
         # Add the block to the map, or if its an air block, just remove the previous block
         key = (floor(pos.x), floor(pos.y), floor(pos.z))
@@ -56,9 +56,9 @@ class Block:
         return self.block_type + "block"
 
 player = box(size = vec(Block.scale, Block.scale * 2, Block.scale), pos = vec(0, Block.scale, 0), color = color.black)
-cube = box(pos = vec(Block.scale / 2, Block.scale / 2, Block.scale / 2), axis = vec(1, 0, 0), size = vec(1, 1, 1), opacity=0.5, color = color.yellow)
+# cube = box(pos = vec(Block.scale / 2, Block.scale / 2, Block.scale / 2), axis = vec(1, 0, 0), size = vec(1, 1, 1), opacity=0.5, color = color.yellow)
 player.vel = vec(0, 0, 0)     # this is its initial velocity
-tpPlayer(vec(1, 1, 1))
+tp_player(vec(1, 1, 1))
 
 #island
 for x in range(7):
@@ -83,12 +83,12 @@ for x in range(3):
 for y in range(1, 5):
     Block(vec(1, y, -2), "wood")
 
-trunk_bottom = blockAt(vec(1, 1, -2))
+Block(vec(1, 1, 0), "grass")
 
 # +++ Start of game loop section -- update the position of the player and other entities continuously
 
 # Other constants
-RATE = 30                                   # The number of times the while loop runs each second
+RATE = 60                                   # The number of times the while loop runs each second
 dt = 1.0 / (1.0 * RATE)                     # The time step each time through the while loop
 player.visible = False                      # Set to false since the camera is inside the player
 player.on_ground = False                    # False initially. Keeps track of whether the player is touching the ground
@@ -104,14 +104,16 @@ max_vel = 10 * Block.scale * vec(1, 2, 1)   # Maximum value for the x and z comp
 accel = 3 * Block.scale                     # Acceleration used in the x and z directions while walking
 gravity = -9.8 * Block.scale * 5            # Acceleration used in the y direction while falling
 scene.fov = pi / 3                          # Set field of view
-userspin_rate = 4 * pi / 180                # Set the rate at which the camera rotates when the mouse is dragged near the edge of the screen
-userspin_threshold = 0.5                    # Set the threshold for the mouse position on the screen before the camera starts rotating
+userspin_rate = 8 * pi / 180                # Set the rate at which the camera rotates when the mouse is dragged near the edge of the screen
+userspin_threshold = 0.3                    # Set the threshold for the mouse position on the screen before the camera starts rotating
 dragging = False                            # Keeps track of whether the player is dragging to rotate the camers
 mouse_onscreen = False                      # Keeps track of whether the mouse is on the screen
 mouse_spinning = True                       # Keeps track of whether rotating the camera using the mouse's position is enabled
 
+cursor = sphere(radius = 0.005, color = color.black, emissive = True)
+
 # Dictionary mapping a control to whether it is active. Updated by keyboard events
-controls = {control: False for control in ["up", "down", "left", "right", "cube_up", "cube_left", "cube_down", "cube_right", "mine", "jump"]}
+controls = {control: False for control in ["up", "down", "left", "right", "camera_left", "camera_right", "mine", "jump"]}
 
 # This is the "event loop" or "animation loop"
 # Each pass through the loop will animate one step in time, dt
@@ -143,9 +145,9 @@ while True:
     else:
         player.vel.z *= friction_coef
 
-    # Naive jump control
+    # Set velocity when the player jumps
     if controls['jump'] and player.on_ground:
-        player.vel.y = 9.8
+        player.vel.y = 12 * Block.scale
 
     # Apply gravity
     player.vel.y += gravity * dt
@@ -164,45 +166,28 @@ while True:
     # Check for and resolve collisions between the player and all the blocks
     player.on_ground = False
     for pos in Block.blocks:
-        resolved_dir = resolveCollision(Block.blocks[pos].model, player)
+        resolved_dir = resolve_collision(Block.blocks[pos].model, player)
         if resolved_dir.y > 0:
             player.on_ground = True
 
-    # +++ Start of CUBE UPDATES
+    # +++ Start of MINING
 
-    # Move cube to player and make it invisible by default
-    cube.pos = player.pos - vec(0, Block.scale / 2, 0)
-    cube.visible = False
-
-    # Move the cube around the player depending on which keys are being pressed
-    if controls["cube_left"]:
-        rotate_camera(1 * pi / 180, 0)
-        cube.pos += vec(-1, 0, 0)
-        # cube.visible = True
-    elif controls['cube_right']:
-        rotate_camera(-1 * pi / 180, 0)
-        cube.pos = cube.pos + vec(1, 0, 0)
-        # cube.visible = True
-    if controls["cube_backward"]:
-        rotate_camera(0, -1 * pi / 180)
-        cube.pos = cube.pos + vec(0, 0, 1)
-        # cube.visible = True
-    elif controls['cube_forward']:
-        rotate_camera(0, 1 * pi / 180)
-        cube.pos = cube.pos + vec(0, 0, -1)
-        # cube.visible = True
-    if controls["cube_up"]:
-        cube.pos = cube.pos + vec(0, 1, 0)
-        # cube.visible = True
-    elif controls["cube_down"]:
-        cube.pos = cube.pos + vec(0, -1, 0)
-        # cube.visible = True
-
-    # If the cube is active and q is pressed, try to mine
-    if controls["mine"] and cube.visible:
-        mine(cube.pos)
+    # Try to mine the block the player is looking at
+    if controls["mine"]:
+        looking_at = block_through(scene.camera.pos, scene.forward, 3)
+        mine(looking_at.pos)
 
     # +++ Start of CAMERA ROTATIONS
+
+    # Control camera with arrow keys
+    if controls["camera_left"]:
+        rotate_camera(1 * pi / 180, 0)
+    elif controls['camera_right']:
+        rotate_camera(-1 * pi / 180, 0)
+    if controls["camera_down"]:
+        rotate_camera(0, -1 * pi / 180)
+    elif controls['camera_up']:
+        rotate_camera(0, 1 * pi / 180)
 
     # Compute the angle in the horizontal direction of the mouse on the screen relative to the camera's line of sight
     proj_xz = scene.mouse.ray - scene.mouse.ray.proj(scene.camera.up)
@@ -226,15 +211,17 @@ while True:
     if abs(percent_x) < userspin_threshold:
         percent_x = 0
     else:
-        # Correct for threshold so that the rotation is smooth
+        # Correct for threshold so that the rotation is smooth on the boundary of the threshold
         percent_x = 1 / (1 - userspin_threshold) * (percent_x - userspin_threshold * sign(percent_x))
+        percent_x *= abs(percent_x)
 
     # Set a threshold to activate the screen rotation in the vertical direction
     if abs(percent_y) < userspin_threshold:
         percent_y = 0
     else:
-        # Correct for threshold so that the rotation is smooth
+        # Correct for threshold so that the rotation is smooth on the boundary of the threshold
         percent_y = 1 / (1 - userspin_threshold) * (percent_y - userspin_threshold * sign(percent_y))
+        percent_y *= abs(percent_y)
 
     # If the mouse is being used to drag the camera rotation, disable rotating the camera with the mouse position until the user returns their mouse to the center of the screen
     if dragging:
@@ -248,20 +235,7 @@ while True:
 
     # Only update scene.camera.pos after all the physics updates and rotations are complete to avoid chopiness in the camera movement
     scene.camera.pos = player.pos + vec(0, Block.scale / 2, 0)
-
-def rotate_camera(angle_x, angle_y):
-    """Rotates the camera and other relevant vectors given an x and y angle"""
-    # Rotate around the scene.up vector for the x rotation
-    scene.mouse.ray = rotate(scene.mouse.ray, angle = angle_x, axis = scene.up)
-    scene.camera.up = rotate(scene.camera.up, angle = angle_x, axis = scene.up)
-    scene.forward = rotate(scene.forward, angle = angle_x, axis = scene.up)
-
-    #TODO Add check to prevent the camera from rotating past positive and negative 90 degrees in the y direction
-    # Rotate around the vector orthogonal to the camera's up vector and the scene's forward vector for the y rotation
-    scene.camera.orthogonal = scene.forward.cross(scene.camera.up)
-    scene.mouse.ray = rotate(scene.mouse.ray, angle = angle_y, axis = scene.camera.orthogonal)
-    scene.camera.up = rotate(scene.camera.up, angle = angle_y, axis = scene.camera.orthogonal)
-    scene.forward = rotate(scene.forward, angle = angle_y, axis = scene.camera.orthogonal)
+    cursor.pos = scene.camera.pos + scene.forward.norm() * 0.5
 
 # +++ Start of EVENT_HANDLING section -- separate functions for keypresses and mouse clicks...
 
@@ -277,7 +251,6 @@ def keydown_fun(event):
 
 def update_controls(key, pressed):
     """Updates the controls dictionary given a key string and whether it was just pressed or released"""
-    # print(key)
     if key in 'wWiI':
         controls['forward'] = pressed
     elif key in 'aAjJ':
@@ -287,17 +260,13 @@ def update_controls(key, pressed):
     elif key in "dDlL":
         controls['right'] = pressed
     elif key == "up":
-        controls['cube_forward'] = pressed
+        controls['camera_up'] = pressed
     elif key == "left":
-        controls['cube_left'] = pressed
+        controls['camera_left'] = pressed
     elif key == "down":
-        controls['cube_backward'] = pressed
+        controls['camera_down'] = pressed
     elif key == "right":
-        controls['cube_right'] = pressed
-    elif key == "pageup":
-        controls["cube_up"] = pressed
-    elif key == "pagedown":
-        controls["cube_down"] = pressed
+        controls['camera_right'] = pressed
     elif key in "qQ":
         controls["mine"] = pressed
     elif key == " ":
@@ -360,13 +329,13 @@ def clamp(value, upper, lower = None):
             return lower
     return min(max(value, lower), upper)
 
-def tpPlayer(new_pos):
+def tp_player(new_pos):
     """Teleport the player so that their lower half occupies the block with the given position"""
     player.pos.x = new_pos.x * Block.scale + Block.scale / 2
     player.pos.y = new_pos.y * Block.scale + Block.scale
     player.pos.z = new_pos.z * Block.scale + Block.scale / 2
 
-def nearestBlock(pos, truncFunc = round):
+def nearest_block(pos, truncFunc = round):
     """ Return the position of the nearest block to the given position. 
         The given function for truncFunc is the operation used to return the block position as integers. 
         It defaults to the round function
@@ -377,7 +346,7 @@ def nearestBlock(pos, truncFunc = round):
     block_pos.z = truncFunc((pos.z - Block.scale / 2) / Block.scale)
     return block_pos
 
-def blockAt(pos):
+def block_at(pos):
     """Return the block in the map at the give position. If no block is found, an air block is returned"""
     key = (pos.x, pos.y, pos.z)
     if key in Block.blocks:
@@ -387,17 +356,17 @@ def blockAt(pos):
 
 def mine(pos):
     """Attempts to mine the block at the given position. If the block is not already air, it is replaced with air"""
-    block_pos = nearestBlock(pos, round)
-    block = blockAt(block_pos)
+    block_pos = nearest_block(pos, round)
+    block = block_at(block_pos)
     if block.block_type == "air":
         print("Cannot mine")
     else:
         Block(block_pos, "air")
 
-def getCollisionManifold(boxA, boxB):
+def get_collision_manifold(boxA, boxB):
     """ Gets the collision manifold, or the dimensions in which the two boxes intersect, between the given two boxes.
-        Returns a tuple whose first value is a boolean indicating whether the two boxes intersect at all, and whose second value
-        is a vector whose components are the penetration depth in the x, y, and z directions. If the boxes don't intersect, 
+        Returns a tuple whose first value is a boolean indicating whether the two boxes intersect at all, and whose second
+        through fourth values are the penetration depth in the x, y, and z directions. If the boxes don't intersect, 
         all three components are 0. The boxes must not be rotated.
     """
     (Ax1, Ay1, Az1) = (boxA.pos.x - boxA.size.x / 2, boxA.pos.y - boxA.size.y / 2, boxA.pos.z - boxA.size.z / 2)
@@ -426,15 +395,22 @@ def getCollisionManifold(boxA, boxB):
         # return (False, (0, 0, 0))
         return (False, 0, 0, 0)
 
-def resolveCollision(boxA, boxB):
-    colliding, delx, dely, delz = getCollisionManifold(boxA, boxB)
+def resolve_collision(boxA, boxB):
+    """ Check for and resolve a collision between the two given boxes. If a collision is found, boxB is 
+        displaced to resolve the collision and has its velocity in the direction of the collision set to 0.
+        Returns a unit vector in the direction of the collision. The unit vector is always along one axis.
+    """
+    colliding, delx, dely, delz = get_collision_manifold(boxA, boxB)
 
     # Only resolve the collision if the two boxes are actually colliding
     if colliding:
+        # Find the magnitude of the minimum displacement necessary to resolve the collision
         minDel = min(abs(delx), abs(dely), abs(delz))
         displacement = vec(delx, dely, delz)
         velCorrection = vec(-boxB.vel.x, -boxB.vel.y, -boxB.vel.z)
         resolved_dir = vec(sign(delx), sign(dely), sign(delz))
+
+        # Figure out which direction to apply the displacement and velocity correction in
         if abs(delx) > minDel:
             displacement.x = 0
             velCorrection.x = 0
@@ -447,12 +423,52 @@ def resolveCollision(boxA, boxB):
             displacement.z = 0
             velCorrection.z = 0
             resolved_dir.z = 0
+
+        # Apply displacement to boxB
         boxB.pos += displacement
 
-        # Only correct velocity if it opposes the displacement
+        # Only correct velocity if it is in the direction of the collision
         if displacement.dot(velCorrection) > 0:
             boxB.vel += velCorrection
 
         return resolved_dir
     else:
         return vec(0, 0, 0)
+
+def rotate_camera(angle_x, angle_y):
+    """Rotates the camera and other relevant vectors given an x and y angle"""
+    # Rotate around the scene.up vector for the x rotation
+    scene.mouse.ray = rotate(scene.mouse.ray, angle = angle_x, axis = scene.up)
+    scene.camera.up = rotate(scene.camera.up, angle = angle_x, axis = scene.up)
+    scene.forward = rotate(scene.forward, angle = angle_x, axis = scene.up)
+
+    # Find camera angle in the y direction and set upward and downward bounds
+    camera_angle_y = scene.up.diff_angle(scene.forward)
+    up_bound = 1 * pi / 180
+    down_bound = (180 - 5) * pi / 180
+    
+    # If the camera is within the bounds, rotate around the vector orthogonal to the camera's up vector and the scene's forward vector for the y rotation
+    if (camera_angle_y > up_bound and angle_y > 0) or (camera_angle_y < down_bound and angle_y < 0):
+        # Set angle_y to the bound when it exceeds it
+        if camera_angle_y - angle_y < up_bound:
+            angle_y = camera_angle_y - up_bound
+        elif camera_angle_y - angle_y > down_bound:
+            angle_y = camera_angle_y - down_bound
+        
+        # Do the actual rotation
+        scene.camera.orthogonal = scene.forward.cross(scene.camera.up)
+        scene.mouse.ray = rotate(scene.mouse.ray, angle = angle_y, axis = scene.camera.orthogonal)
+        scene.camera.up = rotate(scene.camera.up, angle = angle_y, axis = scene.camera.orthogonal)
+        scene.forward = rotate(scene.forward, angle = angle_y, axis = scene.camera.orthogonal)
+
+def block_through(origin, direction, max_distance):
+    """ Uses a simple ray tracing algorithm to find the first block that intersects the ray from the given origin, 
+        in the given direction, within the given range
+    """
+    ds = Block.scale / 10
+    direction = direction.norm()
+    for i in range(max_distance / ds):
+        block = block_at(nearest_block(origin + direction * ds * i, round))
+        if block.block_type != "air":
+            return block
+    return block
