@@ -430,31 +430,31 @@ def resolve_collision(boxA, boxB):
     # Only resolve the collision if the two boxes are actually colliding
     if colliding:
         # Find the magnitude of the minimum displacement necessary to resolve the collision
-        minDel = min(abs(del_x), abs(del_y), abs(del_z))
+        min_del = min(abs(del_x), abs(del_y), abs(del_z))
         displacement = vec(del_x, del_y, del_z)
-        velCorrection = vec(-boxB.vel.x, -boxB.vel.y, -boxB.vel.z)
+        vel_correction = vec(-boxB.vel.x, -boxB.vel.y, -boxB.vel.z)
         resolved_dir = vec(sign(del_x), sign(del_y), sign(del_z))
 
         # Figure out which direction to apply the displacement and velocity correction in
-        if abs(del_x) > minDel:
+        if abs(del_x) > min_del:
             displacement.x = 0
-            velCorrection.x = 0
+            vel_correction.x = 0
             resolved_dir.x = 0
-        if abs(del_y) > minDel:
+        if abs(del_y) > min_del:
             displacement.y = 0
-            velCorrection.y = 0
+            vel_correction.y = 0
             resolved_dir.y = 0
-        if abs(del_z) > minDel:
+        if abs(del_z) > min_del:
             displacement.z = 0
-            velCorrection.z = 0
+            vel_correction.z = 0
             resolved_dir.z = 0
 
         # Apply displacement to boxB
         boxB.pos += displacement
 
         # Only correct velocity if it is in the direction of the collision
-        if displacement.dot(velCorrection) > 0:
-            boxB.vel += velCorrection
+        if displacement.dot(vel_correction) > 0:
+            boxB.vel += vel_correction
 
         return resolved_dir
     else:
