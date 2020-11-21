@@ -76,7 +76,7 @@ class Block:
         return self.block_type + "block"
 
     def remove(self):
-        # print("removing")
+        """Remove the block by replacing it with an air block"""
         self.hitbox.visible = False
         for side in self.model:
             side.visible = False
@@ -388,11 +388,15 @@ def update_controls(key, pressed):
 
 previous_mouse_pos = vec(0, 0, 0)
 def mousedown_fun(event):
+    """Runs when the mouse button is pressed"""
     global previous_mouse_pos, dragging
     dragging = True
     previous_mouse_pos = vec(event.pageX, event.pageY, 0)
 
 def mousemove_fun(event):
+    """ Runs when the mouse is moved on the canvas. According to the documentaiton, it should run regardless 
+        of whether the mouse is being held, but it doesn't
+    """
     global previous_mouse_pos
     mouse_pos = vec(event.pageX, event.pageY, 0)
     delta_pos = previous_mouse_pos - mouse_pos
@@ -403,14 +407,17 @@ def mousemove_fun(event):
     previous_mouse_pos = mouse_pos
 
 def mouseup_fun(event):
+    """Runs when the mouse button is released"""
     global dragging
     dragging = False
 
 def mouseenter_fun(event):
+    """Runs when the mouse enters the canvas"""
     global mouse_onscreen
     mouse_onscreen = True
 
 def mouseleave_fun(event):
+    """Runs when the mouse leaves the canvas"""
     global mouse_onscreen
     mouse_onscreen = False
 
@@ -591,6 +598,7 @@ def rotate_camera(angle_x, angle_y):
         scene.forward = rotate(scene.forward, angle = angle_y, axis = scene.camera.orthogonal)
 
 def move_camera(player):
+    """Moves the camera to the player object"""
     scene.camera.pos = player.hitbox.pos + vec(0, Block.scale / 2 + Player.scale / 2, 0)
 
 def block_through(origin, direction, max_distance):
