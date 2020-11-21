@@ -22,11 +22,13 @@ class Block:
     scale = 1
     color_map = {"dirt": vec(127 / 255, 92 / 255, 7 / 255), "leaf": vec(12 / 255, 179 / 255, 26 / 255), "stone": 0.5 * vec(1, 1, 1)}
     texture_map = {"dirt": texture = "https://lh3.googleusercontent.com/DpmqnZGty6vns7713z1kTAp3AwBqrZ5ZYz_jf-x04p3lFfQ3Q9j5KruZ-v81846PtM1A9HMHvxQkPpoOqViuvA=s400", 
-                 "stone": texture = "https://art.pixilart.com/df108d01cd72892.png",
-                 "lava": texture = "https://qph.fs.quoracdn.net/main-qimg-5691a6bcf4bd21df68e741ee1d9d4e0f",
-                 "water": texture = "https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcR-ErVpce1X6Y7Z4bYIK9PJfLL4hh_R9nvbFg&usqp=CAU",
-                 "wood": texture = "https://lh3.googleusercontent.com/Sm5RI4dsQZxXHNQfpEBZZwbnuv_nUqNeSXMlpLSfdJC8mGb7REfYBLUNxiyZYTeXmOo-YkdWAGLBnuUj6-iHCA=s400",
-                 "grass": texture = "https://lh3.googleusercontent.com/0Xh1P9-7QIXw2j-TM5lGIo5Vvtkq3UIwynD04RgngIOU-4KOy06ZONL93Ht4YyCXEVXojj5Xn-H1m6NHC4rmW-g=s400"}
+                "stone": texture = "https://art.pixilart.com/df108d01cd72892.png",
+                "lava": texture = "https://qph.fs.quoracdn.net/main-qimg-5691a6bcf4bd21df68e741ee1d9d4e0f",
+                "water": texture = "https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcR-ErVpce1X6Y7Z4bYIK9PJfLL4hh_R9nvbFg&usqp=CAU",
+                "wood": texture = "https://i.imgur.com/n6J1Jhz.jpg",
+                "leaf": texture = "https://i.imgur.com/E4ycyzv.jpg",
+                "grass_top": texture = {'file': "https://lh3.googleusercontent.com/0Xh1P9-7QIXw2j-TM5lGIo5Vvtkq3UIwynD04RgngIOU-4KOy06ZONL93Ht4YyCXEVXojj5Xn-H1m6NHC4rmW-g=s400", 'place':['sides']},
+                "grass": texture = {'file':"https://lh3.googleusercontent.com/2ZdPa8KBDybnUudpc9yRmaCU3DYHH4SL7gxRTPwyk1oCn_1xCzntDLkb02MChMipFu-N3BzNAtXP2BCiwOl9WgM", 'place':['sides']}}
     blocks = {}
     def __init__(self, pos, block_type):
         # Align the block to a grid
@@ -35,32 +37,135 @@ class Block:
         self.pos.y = floor(pos.y) * Block.scale + Block.scale / 2
         self.pos.z = floor(pos.z) * Block.scale + Block.scale / 2
 
+        self.model = []
+
         self.block_type = block_type
         if block_type != "air":
             # Create block model
             if block_type in Block.texture_map:
-                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, texture = Block.texture_map[block_type], emissive = True, shininess = 0)
+                if block_type == "grass":
+                    self.b1 = box(size = vec(Block.scale, Block.scale, .0001), pos = vec(self.pos.x,self.pos.y,self.pos.z -Block.scale*.5), axis = vec(1,0,0), texture = Block.texture_map["grass"], emissive = True)
+                    self.b2 = box(size = vec(Block.scale, Block.scale, .0001), pos = vec(self.pos.x,self.pos.y,self.pos.z+ Block.scale -Block.scale*.5), axis = vec(1,0,0), texture = Block.texture_map["grass"], emissive = True)
+                    self.b3 = box(size = vec(Block.scale, Block.scale, .0001), pos = vec(self.pos.x + Block.scale*(-.5),self.pos.y,self.pos.z + Block.scale*(.5)-Block.scale*.5), axis = vec(0,0,1), texture = Block.texture_map["grass"], emissive = True)
+                    self.b4 = box(size = vec(Block.scale, Block.scale, .0001), pos = vec(self.pos.x+ Block.scale*(.5),self.pos.y,self.pos.z+Block.scale*(.5)-Block.scale*.5), axis = vec(0,0,1), texture = Block.texture_map["grass"], emissive = True)
+                    self.bottom = box(size = vec(Block.scale, .001, Block.scale), pos = vec(self.pos.x,self.pos.y+ Block.scale*(-.5),self.pos.z+Block.scale*(.5)-Block.scale*.5), axis = vec(0,0,1), texture = Block.texture_map["dirt"], emissive = True)
+                    self.grass_top = box(size = vec(Block.scale, .001, Block.scale), pos = vec(self.pos.x,self.pos.y+Block.scale*(.5),self.pos.z+Block.scale*(.5)-Block.scale*.5), axis = vec(0,0,1), texture = Block.texture_map["grass_top"], emissive = True)
+
+                    self.model = [self.b1, self.b2, self.b3, self.b4, self.bottom, self.grass_top]
+
+                    self.hitbox = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, opacity = 0, emissive = True)    
+                    self.hitbox.visible = False
+                else:
+                    self.hitbox = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, texture = Block.texture_map[block_type], emissive = True, shininess = 0)
             elif block_type in Block.color_map:
-                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = Block.color_map[block_type], emissive = True, shininess = 0)
+                self.hitbox = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = Block.color_map[block_type], emissive = True, shininess = 0)
             else:
-                self.model = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = color.magenta, emissive = True, shininess = 0)
+                self.hitbox = box(size = vec(Block.scale, Block.scale, Block.scale), pos = self.pos, color = color.magenta, emissive = True, shininess = 0)
 
         # Add the block to the map, or if its an air block, just remove the previous block
         key = (floor(pos.x), floor(pos.y), floor(pos.z))
         if key in Block.blocks:
             oldBlock = Block.blocks[key]
             oldBlock.model.visible = False
-            del oldBlock.model
+            del oldBlock.hitbox
             del Block.blocks[key]
         if block_type != "air":
             Block.blocks[key] = self
-    
+
     def __repr__(self):
         return self.block_type + "block"
 
-player = box(size = vec(Block.scale, Block.scale * 2, Block.scale), pos = vec(0, Block.scale, 0), color = color.black)
+    def remove(self):
+        # print("removing")
+        self.hitbox.visible = False
+        for side in self.model:
+            side.visible = False
+        Block(self.pos, "air")
+
+class Player:
+    scale = Block.scale / 2
+    
+    def __init__(self, pos):
+        self.hitbox = box(size = vec(Block.scale, Block.scale * 2, Block.scale), pos = pos, visible = False)
+        self.hitbox.vel = vec(0, 0, 0)
+        # self.hitbox.pos = vec(0, 0, 0)
+        # self.hitbox.pos.x = floor(pos.x) * Player.scale 
+        # self.hitbox.pos.y = floor(pos.y) * Player.scale - 0.5 * Player.scale
+        # self.hitbox.pos.z = floor(pos.z) * Player.scale
+        self.hitbox.last_pos = vec(self.hitbox.pos)
+        
+        self.model = []
+
+        #head
+        self.face = box(size = vec(Player.scale, Player.scale, .001), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x, self.hitbox.pos.y, self.hitbox.pos.z), texture= "https://i.imgur.com/xGBPM4r.png", emissive = True)
+        self.left_face = box(size = vec(Player.scale, Player.scale, .001), axis = vec(0, 0, 1), pos = vec(.5*Player.scale + self.hitbox.pos.x, self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/0MweIHN.png", emissive = True)
+        self.right_face = box(size = vec(Player.scale, Player.scale, .001), axis = vec(0, 0, 1), pos = vec(-.5*Player.scale + self.hitbox.pos.x, self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/KBu05a4.png", emissive = True)
+        self.forehead = box(size = vec(Player.scale, .001, Player.scale), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x, .5*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/5zchhnC.png", emissive = True)
+        self.bottom = box(size = vec(Player.scale, .001, Player.scale), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x,-.5*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/5zchhnC.png", emissive = True)
+        self.back_head = box(size = vec(Player.scale, Player.scale, .001), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x, self.hitbox.pos.y,-1*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/GM3mhsQ.jpg", emissive = True)
+        
+        #body
+        self.front_body = box(size = vec(Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.25*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/VPh0BcH.png", emissive = True)
+        self.back_body = box(size = vec(Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.75*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/g5SiySx.png", emissive = True)
+        self.left_innerbody = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 1), pos = vec(.5*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/yUUrBWl.png", emissive = True)
+        self.right_innerbody = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 1), pos = vec(-.5*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/yUUrBWl.png", emissive = True)
+        
+        #arms
+        self.left_arm_front = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(.75*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.25*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/RGQfD6E.png", emissive = True)
+        self.right_arm_front = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(-.75*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.25*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/RGQfD6E.png", emissive = True)
+        self.left_arm_back = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(.75*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.75*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/joEQh9C.png", emissive = True)
+        self.right_arm_back = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(-.75*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.75*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/joEQh9C.png", emissive = True)
+        self.left_arm_side = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 1), pos = vec(1*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/hasbIck.png", emissive = True)
+        self.right_arm_side = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 1), pos = vec(-1*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/YCj05N3.png", emissive = True)
+        self.left_arm_inner = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 1), pos = vec(.5*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/hasbIck.png", emissive = True)
+        self.right_arm_inner = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 1), pos = vec(-.5*Player.scale + self.hitbox.pos.x,-1.25*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/hasbIck.png", emissive = True)
+        
+        #legs
+        self.left_leg_front = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(.25*Player.scale + self.hitbox.pos.x,-2.75*Player.scale + self.hitbox.pos.y,-.25*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/raDULwo.png", emissive = True)
+        self.left_leg_back = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(.25*Player.scale + self.hitbox.pos.x,-2.75*Player.scale + self.hitbox.pos.y,-.75*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/RVFoPxR.png", emissive = True)
+        self.left_leg_side = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 1), pos = vec(.5*Player.scale + self.hitbox.pos.x,-2.75*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/zwFnZgN.png", emissive = True)
+        self.right_leg_front = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(-.25*Player.scale + self.hitbox.pos.x,-2.75*Player.scale + self.hitbox.pos.y,-.25*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/raDULwo.png", emissive = True)
+        self.right_leg_back = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 0), pos = vec(-.25*Player.scale + self.hitbox.pos.x,-2.75*Player.scale + self.hitbox.pos.y,-.75*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/RVFoPxR.png", emissive = True)
+        self.right_leg_side = box(size = vec(.5*Player.scale, 1.5*Player.scale, .001), axis = vec(0, 0, 1), pos = vec(-.5*Player.scale + self.hitbox.pos.x,-2.75*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/zwFnZgN.png", emissive = True)
+        
+        #shoulders
+        self.shoulders = box(size = vec(2*Player.scale, .001, .5*Player.scale), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x,-.5*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/4Sl9Hde.png", emissive = True)
+        #hands
+        self.left_hand = box(size = vec(.5*Player.scale, .001, .5*Player.scale), axis = vec(0, 0, 0), pos = vec(.75*Player.scale + self.hitbox.pos.x,-2*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/DtRDWLo.png", emissive = True)
+        self.right_hand = box(size = vec(.5*Player.scale, .001, .5*Player.scale), axis = vec(0, 0, 0), pos = vec(-.75*Player.scale + self.hitbox.pos.x,-2*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/DtRDWLo.png", emissive = True)
+        #feet
+        self.left_foot = box(size = vec(.5*Player.scale, .001, .5*Player.scale), axis = vec(0, 0, 0), pos = vec(.25*Player.scale + self.hitbox.pos.x,-3.5*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/gNBY1QG.png", emissive = True)
+        self.right_foot = box(size = vec(.5*Player.scale, .001, .5*Player.scale), axis = vec(0, 0, 0), pos = vec(-.25*Player.scale + self.hitbox.pos.x,-3.5*Player.scale + self.hitbox.pos.y,-.5*Player.scale + self.hitbox.pos.z), texture= "https://i.imgur.com/gNBY1QG.png", emissive = True)
+
+        # self.face.visible = False
+        # self.left_face.visible = False
+        # self.right_face.visible = False
+        # self.back_head.visible = False
+
+        # Add all the boxes in the player model to an array
+        self.model = [self.face, self.left_face, self.right_face, self.forehead, self.bottom, self.back_head, self.front_body, self.back_body, self.left_innerbody, self.right_innerbody,
+                    self.left_arm_front, self.right_arm_front, self.left_arm_back, self.right_arm_back, self.left_arm_side, self.right_arm_side, self.left_arm_inner, self.right_arm_inner,
+                    self.left_leg_front, self.right_leg_front, self.left_leg_back, self.right_leg_back, self.left_leg_side, self.right_leg_side, self.shoulders, self.left_hand,
+                    self.right_hand, self.left_foot, self.right_foot]
+
+        for part in self.model:
+            part.pos.y += Block.scale - Player.scale / 2
+            part.pos.y += Block.scale
+            part.pos.z += Player.scale / 2
+
+        self.model = []
+    
+    def sync_model(self):
+        """Move all the boxes which make up the player model the same amount that the player's hitbox has moved"""
+        displacement = self.hitbox.pos - self.hitbox.last_pos
+        for box in self.model:
+            box.pos += displacement
+        self.hitbox.last_pos = vec(self.hitbox.pos)
+
+# player = box(size = vec(Block.scale, Block.scale * 2, Block.scale), pos = vec(0, Block.scale, 0), color = color.black)
+player = Player(vec(0, Block.scale, 0))
 # cube = box(pos = vec(Block.scale / 2, Block.scale / 2, Block.scale / 2), axis = vec(1, 0, 0), size = vec(1, 1, 1), opacity=0.5, color = color.yellow)
-player.vel = vec(0, 0, 0)     # this is its initial velocity
+# player.vel = vec(0, 0, 0)     # this is its initial velocity
 tp_player(vec(1, 1, 1))
 
 #island
@@ -91,12 +196,11 @@ for y in range(1, 5):
 # Other constants
 RATE = 15                                   # The number of times the while loop runs each second
 dt = 1.0 / (1.0 * RATE)                     # The time step each time through the while loop
-player.visible = False                      # Set to false since the camera is inside the player
 player.on_ground = False                    # False initially. Keeps track of whether the player is touching the ground
 scene.autoscale = False                     # Avoids changing the view automatically
-scene.userspin = False                      # Disables the default rotation controls
+scene.userspin = True                      # Disables the default rotation controls
 scene.userpan = False                       # Disables the default panning controls
-scene.userzoom = False
+scene.userzoom = True
 scene.forward = vec(1, 0, 0)                # Initialize forward as a unit vector in the x direction. Rotates with the camera
 scene.mouse.ray = vec(1, 0, 0)              # Initialize mouse.ray as a unit vector in the x direction. Rotates with the camera
 scene.camera.up = vec(0, 1, 0)              # Initialize camera.up as a unit vector in the y direction. Rotates with the camera, unlike scene.up
@@ -130,52 +234,52 @@ while True:
         camera_angle_xz += 2 * pi
 
     # Rotate player's velocity by the camera angle to make updating it simple
-    player.vel = rotate(player.vel, angle = camera_angle_xz, axis = scene.up)
+    player.hitbox.vel = rotate(player.hitbox.vel, angle = camera_angle_xz, axis = scene.up)
 
     # Apply velocity updates in the x and z directions based on the current controls
     if controls['forward']:
-        player.vel.x += accel
+        player.hitbox.vel.x += accel
     elif controls['backward']:
-        player.vel.x -= accel
+        player.hitbox.vel.x -= accel
     else:
-        player.vel.x *= friction_coef
+        player.hitbox.vel.x *= friction_coef
 
     if controls['right']:
-        player.vel.z += accel
+        player.hitbox.vel.z += accel
     elif controls['left']:
-        player.vel.z -= accel
+        player.hitbox.vel.z -= accel
     else:
-        player.vel.z *= friction_coef
+        player.hitbox.vel.z *= friction_coef
 
     # Set velocity when the player jumps
     if controls['jump'] and player.on_ground:
-        player.vel.y = 12 * Block.scale
+        player.hitbox.vel.y = 12 * Block.scale
 
     # Apply gravity
-    player.vel.y += gravity * dt
+    player.hitbox.vel.y += gravity * dt
 
     # Apply max velocity clamping
-    player.vel.x = clamp(player.vel.x, max_vel.x, -max_vel.x)
-    player.vel.y = clamp(player.vel.y, max_vel.y, -max_vel.y)
-    player.vel.z = clamp(player.vel.z, max_vel.z, -max_vel.z)
+    player.hitbox.vel.x = clamp(player.hitbox.vel.x, max_vel.x, -max_vel.x)
+    player.hitbox.vel.y = clamp(player.hitbox.vel.y, max_vel.y, -max_vel.y)
+    player.hitbox.vel.z = clamp(player.hitbox.vel.z, max_vel.z, -max_vel.z)
 
     # Rotate the velocity back in the camera's direction
-    player.vel = rotate(player.vel, angle = -camera_angle_xz, axis = scene.up)
+    player.hitbox.vel = rotate(player.hitbox.vel, angle = -camera_angle_xz, axis = scene.up)
 
     # Update the player's position
-    player.pos = player.pos + player.vel * dt
+    player.hitbox.pos = player.hitbox.pos + player.hitbox.vel * dt
 
     # Artificial vertical displacement to prevent collision issues with the player sinking into the floor
-    # player.pos.y -= 0.5 * gravity * dt * dt
+    # player.hitbox.pos.y -= 0.5 * gravity * dt * dt
 
     # Check for and resolve collisions between the player and all the blocks
     player.on_ground = False
     # for pos in Block.blocks:
-    #     resolved_dir = resolve_collision(Block.blocks[pos].model, player)
+    #     resolved_dir = resolve_collision(Block.blocks[pos].model, player.hitbox)
     #     if resolved_dir.y > 0:
     #         player.on_ground = True
-    for block in get_local_blocks(player):
-        resolved_dir = resolve_collision(block.model, player)
+    for block in get_local_blocks(player.hitbox):
+        resolved_dir = resolve_collision(block.hitbox, player.hitbox)
         if resolved_dir.y > 0:
             player.on_ground = True
 
@@ -243,7 +347,8 @@ while True:
         rotate_camera(percent_x * userspin_rate, percent_y * userspin_rate)
 
     # Only update scene.camera.pos after all the physics updates and rotations are complete to avoid chopiness in the camera movement
-    scene.camera.pos = player.pos + vec(0, Block.scale / 2, 0)
+    player.sync_model()
+    move_camera(player)
     cursor.pos = scene.camera.pos + scene.forward.norm() * 0.5
 
 # +++ Start of EVENT_HANDLING section -- separate functions for keypresses and mouse clicks...
@@ -294,7 +399,7 @@ def mousemove_fun(event):
     angle_x = -delta_pos.x / scene.width
     angle_y = -delta_pos.y / scene.height
     rotate_camera(angle_x, angle_y)
-    scene.camera.pos = player.pos + vec(0, Block.scale / 2, 0)
+    move_camera(player)
     previous_mouse_pos = mouse_pos
 
 def mouseup_fun(event):
@@ -308,10 +413,6 @@ def mouseenter_fun(event):
 def mouseleave_fun(event):
     global mouse_onscreen
     mouse_onscreen = False
-
-# def click_fun(event):
-#     """This function is called each time the mouse is clicked."""
-#     print("event is", event.event, event.which)
 
 # +++ Start of utility functions
 
@@ -340,9 +441,10 @@ def clamp(value, upper, lower = None):
 
 def tp_player(new_pos):
     """Teleport the player so that their lower half occupies the block with the given position"""
-    player.pos.x = new_pos.x * Block.scale + Block.scale / 2
-    player.pos.y = new_pos.y * Block.scale + Block.scale
-    player.pos.z = new_pos.z * Block.scale + Block.scale / 2
+    player.hitbox.pos.x = new_pos.x * Block.scale + Block.scale / 2
+    player.hitbox.pos.y = new_pos.y * Block.scale + Block.scale
+    player.hitbox.pos.z = new_pos.z * Block.scale + Block.scale / 2
+    player.sync_model
 
 def nearest_block(pos, truncFunc = round):
     """ Return the position of the nearest block to the given position. 
@@ -368,9 +470,10 @@ def mine(pos):
     block_pos = nearest_block(pos, round)
     block = block_at(block_pos)
     if block.block_type == "air":
-        print("Cannot mine")
+        print("Cannot mine air")
     else:
-        Block(block_pos, "air")
+        block.remove()
+        # Block(block_pos, "air")
 
 def get_local_blocks(box):
     """Return the list of blocks immediately surrounding the given box that it could possible be colliding with"""
@@ -462,6 +565,7 @@ def resolve_collision(boxA, boxB):
 
 def rotate_camera(angle_x, angle_y):
     """Rotates the camera and other relevant vectors given an x and y angle"""
+    # return
     # Rotate around the scene.up vector for the x rotation
     scene.mouse.ray = rotate(scene.mouse.ray, angle = angle_x, axis = scene.up)
     scene.camera.up = rotate(scene.camera.up, angle = angle_x, axis = scene.up)
@@ -485,6 +589,9 @@ def rotate_camera(angle_x, angle_y):
         scene.mouse.ray = rotate(scene.mouse.ray, angle = angle_y, axis = scene.camera.orthogonal)
         scene.camera.up = rotate(scene.camera.up, angle = angle_y, axis = scene.camera.orthogonal)
         scene.forward = rotate(scene.forward, angle = angle_y, axis = scene.camera.orthogonal)
+
+def move_camera(player):
+    scene.camera.pos = player.hitbox.pos + vec(0, Block.scale / 2 + Player.scale / 2, 0)
 
 def block_through(origin, direction, max_distance):
     """ Uses a simple ray tracing algorithm to find the first block that intersects the ray from the given origin, 
