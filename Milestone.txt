@@ -1,0 +1,43 @@
+Members: Olivia Yin and Chris Herrera
+
+Note: We have two separate programs right now but we are talking with each other and plan
+on merging over the weekend
+The controls are all over the place right now but my program has several functions
+
+Controls:
+up/down/left/right = controlling the player as well as the hitbox that surrounds the player
+I/J/K/L = controlling the small box within the hitbox to select objects to mine
+
+W/S = controls the height of the player and hitbox (will not be here later)
+O/N = controls the height of the small box within the hitbox
+
+P = places water
+L = places lava
+
+Function 1: Mining/Building a Cobblestone generator
+
+Click "M" when you have the small box near the player covering a block of choice (of the island)
+- that should mine the block and make it disappear
+
+How to build a cobblestone generator: (if the directions are confusing the internet helps: "Minecraft cobblestone generator")
+1. Mine 4 blocks in a straight line (preferably with blocks surrounding all sides)
+2. On the 3rd block of the 4 block line, dig down one more
+3. Place water using the 'P' on the longer side of the 4 block line
+4. Place lava on the leftover block
+
+*There are some bugs here where it works for one way more than the other (will fix)
+Suggestion: place the water on the side further away from the tree and let it flow towards the tree
+
+
+Objective: Get to a second island
+We have some maps already ready but we are still trying to get everything together
+Our goal is to use mining and placing blocks to get through an obstacle course and 
+make it to a second island other than the one that was already made. 
+
+Things to work on (individually):
+- Fix water problem
+- Fix player origin to NOT a constant (wanted an animation of the player walking)
+- Get player hitbox working and visible
+
+FRIDAY/WEEKEND:
+- Merging and getting everything working
