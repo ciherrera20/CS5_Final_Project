@@ -1,21 +1,21 @@
 GlowScript 3.0 VPython
 
+# Scene background color and dimensions
 scene.background = color.cyan
-scene.width = 640                      # Make the 3D canvas larger
+scene.width = 640
 scene.height = 480
 scene.resizable = True
-scene.bind('keydown', keydown_fun)     # Function for key presses
-scene.bind('keyup', keyup_fun)     # Function for key presses
+
+# Bind event listeners
+scene.bind('keydown', keydown_fun)
+scene.bind('keyup', keyup_fun)
 scene.bind('mousedown', mousedown_fun)
 scene.bind('mousemove', mousemove_fun)
 scene.bind('mouseup', mouseup_fun)
 scene.bind('mouseenter', mouseenter_fun)
 scene.bind('mouseleave', mouseleave_fun)
-scene.wrapper.css('height', '100%')
-scene.wrapper.css('min-height', '100%')
-scene.wrapper.css('margin', '0')
 
-# +++ Start of object creation -- Create the blocks making up the world and the player
+# +++ Start of CLASS CREATION -- Create the classes used throughout the game
 
 class Hitbox:
     ''' Wrapper class to hold information about axis aligned hitboxes. Used for collision detection instead of the 
@@ -33,7 +33,7 @@ class Hitbox:
         return Hitbox(vec(self.pos), vec(self.size), vec(self.velocity))
 
 class Face:
-    '''Wrapper class for a quad which allows it to be easily moved'''
+    '''Wrapper class for a quad object to allow it to be easily created, textured/colored, moved, and rotated'''
     def __init__(self, pos, size, normal, axis, texture = None, color = vec(1, 1, 1)):
         width, height = (size.x, size.y)
         axis = (axis - axis.proj(normal)).norm()
@@ -47,23 +47,27 @@ class Face:
         self.pos = pos
 
     def new_pos(self, new_pos):
+        '''Moves all the vertices in the quad to the given new position. Not guaranteed to work if self.pos has been modified since vertex offsets are computed to it'''
         for vertex in self.vertices:
             vertex.pos = vertex.pos - self.pos + new_pos
         self.pos = vec(new_pos)
 
     def rotate(self, angle, axis, origin):
+        '''Rotate all vertices by the given angle about the given axis and origin'''
         for vertex in self.vertices:
             vertex.rotate(angle = angle, axis = axis, origin = origin)
 
     def hide(self):
+        '''Hide the quad'''
         self.quad.visible = False
 
     def show(self):
+        '''Show the quad'''
         self.quad.visible = True
 
-# Represents the blocks that makeup the world
 class Block:
-    scale = 1
+    '''Represents the blocks that make up the world'''
+    scale = 1       # Everything should be defined in relation to this block scale, but we haven't actually tested changing it
     color_map = {'dirt': vec(127 / 255, 92 / 255, 7 / 255), 'leaf': vec(12 / 255, 179 / 255, 26 / 255), 'stone': 0.5 * vec(1, 1, 1)}
     texture_map = {'dirt': texture = 'https://lh3.googleusercontent.com/DpmqnZGty6vns7713z1kTAp3AwBqrZ5ZYz_jf-x04p3lFfQ3Q9j5KruZ-v81846PtM1A9HMHvxQkPpoOqViuvA=s400', 
                 'stone': texture = 'https://art.pixilart.com/df108d01cd72892.png',
@@ -73,7 +77,7 @@ class Block:
                 'leaf': texture = 'https://i.imgur.com/E4ycyzv.jpg',
                 'grass_top': texture = {'file': 'https://lh3.googleusercontent.com/0Xh1P9-7QIXw2j-TM5lGIo5Vvtkq3UIwynD04RgngIOU-4KOy06ZONL93Ht4YyCXEVXojj5Xn-H1m6NHC4rmW-g=s400', 'place':['sides']},
                 'grass': texture = {'file':'https://lh3.googleusercontent.com/2ZdPa8KBDybnUudpc9yRmaCU3DYHH4SL7gxRTPwyk1oCn_1xCzntDLkb02MChMipFu-N3BzNAtXP2BCiwOl9WgM', 'place':['sides']}}
-    blocks = {}
+    blocks = {}     # Map of grid positions to the blocks occupying them
     def __init__(self, pos, block_type):
         # Align the block to a grid
         self.pos = vec(0, 0, 0)
@@ -81,14 +85,20 @@ class Block:
         self.pos.y = floor(pos.y) * Block.scale + Block.scale / 2
         self.pos.z = floor(pos.z) * Block.scale + Block.scale / 2
 
+        # Array to hold the VPython objects which make up the block's model
         self.model = []
+
+        # The block's actual hitbox
         self.hitbox = Hitbox(self.pos, vec(Block.scale, Block.scale, Block.scale))
 
+        # Texture the faces based on the block's type
         self.block_type = block_type
         if block_type != 'air':
-            # Create block model
+            # Default is no textures and a magenta color indicating an unknown block
             block_north = block_east = block_south = block_west = block_top = block_bottom = None
             block_color = color.magenta
+
+            # If the block type is found in the texture map, apply those textures
             if block_type in Block.texture_map:
                 block_north = block_east = block_south = block_west = block_top = block_bottom = Block.texture_map[block_type]
                 block_color = vec(1, 1, 1)
@@ -96,24 +106,25 @@ class Block:
                     block_north = block_east = block_south = block_west = Block.texture_map['grass']
                     block_top = Block.texture_map['grass_top']
                     block_bottom = Block.texture_map['dirt']
-            elif block_type in Block.color_map:
+            elif block_type in Block.color_map:     # If the block type is found in the color map, apply that color
                 block_color = Block.color_map[block_type]
+
+            # Create the 6 faces of the block with the specified textures/color and add them to the model array            
             self.west = Face(pos = vec(self.pos.x, self.pos.y, self.pos.z - Block.scale / 2), size = vec(Block.scale, Block.scale, 0), normal = vec(0, 0, -1), axis = vec(-1, 0, 0), texture = block_west, color = block_color)
             self.east = Face(pos = vec(self.pos.x, self.pos.y, self.pos.z + Block.scale / 2), size = vec(Block.scale, Block.scale, 0), normal = vec(0, 0, 1), axis = vec(1, 0, 0), texture = block_east, color = block_color)
             self.south = Face(pos = vec(self.pos.x - Block.scale / 2, self.pos.y, self.pos.z), size = vec(Block.scale, Block.scale, 0), normal = vec(-1, 0, 0), axis = vec(0, 0, 1), texture = block_south, color = block_color)
             self.north = Face(pos = vec(self.pos.x + Block.scale / 2, self.pos.y, self.pos.z), size = vec(Block.scale, Block.scale, 0), normal = vec(1, 0, 0), axis = vec(0, 0, -1), texture = block_north, color = block_color)
             self.top = Face(pos = vec(self.pos.x, self.pos.y + Block.scale / 2, self.pos.z), size = vec(Block.scale, Block.scale, 0), normal = vec(0, 1, 0), axis = vec(0, 0, 1), texture = block_top, color = block_color)
             self.bottom = Face(pos = vec(self.pos.x, self.pos.y - Block.scale / 2, self.pos.z), size = vec(Block.scale, Block.scale, 0), normal = vec(0, 1, 0), axis = vec(0, 0, -1), texture = block_bottom, color = block_color)
-            # self.model = [box(pos = self.pos, size = Block.scale * vec(1, 1, 1), color = color.magenta)]
             self.model = [self.north, self.east, self.west, self.south, self.bottom, self.top]
 
         # Add the block to the map, or if its an air block, just remove the previous block
         key = (floor(pos.x), floor(pos.y), floor(pos.z))
         if key in Block.blocks:
+            # Hide the old block's model and delete it from the map
             oldBlock = Block.blocks[key]
             for side in oldBlock.model:
                 side.hide()
-                # side.visible = False
             del Block.blocks[key]
         if block_type != 'air':
             Block.blocks[key] = self
@@ -126,18 +137,20 @@ class Block:
         Block(self.pos, 'air')
 
 class Player:
+    '''Represents the player interacting with the world'''
     scale = 0.93 * Block.scale / 2
     
     def __init__(self, pos):
+        # Create the player's hitbox
         self.hitbox = Hitbox(pos, vec(Block.scale * 0.6, Block.scale * 1.8, Block.scale * 0.6))
         self.hitbox.vel = vec(0, 0, 0)
         self.hitbox.last_pos = vec(self.hitbox.pos)
         
+        # Array to hold the VPython objects which make up the player's model
         self.model = []
 
         #head
         self.face = box(size = vec(Player.scale, Player.scale, 0.001), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x, self.hitbox.pos.y, self.hitbox.pos.z), texture= 'https://i.imgur.com/xGBPM4r.png', emissive = True)
-        # self.face = Face(pos = vec(self.hitbox.pos.x, self.hitbox.pos.y, self.hitbox.pos.z), size = vec(Player.scale, Player.scale, 0), normal = vec(0, 0, 1), axis = vec(1, 0, 0), texture = 'https://i.imgur.com/xGBPM4r.png')
         self.left_face = box(size = vec(Player.scale, Player.scale, 0.001), axis = vec(0, 0, 1), pos = vec(0.5 * Player.scale + self.hitbox.pos.x, self.hitbox.pos.y, -0.5 * Player.scale + self.hitbox.pos.z), texture= 'https://i.imgur.com/0MweIHN.png', emissive = True)
         self.right_face = box(size = vec(Player.scale, Player.scale, 0.001), axis = vec(0, 0, 1), pos = vec(-0.5 * Player.scale + self.hitbox.pos.x, self.hitbox.pos.y, -0.5 * Player.scale + self.hitbox.pos.z), texture= 'https://i.imgur.com/KBu05a4.png', emissive = True)
         self.forehead = box(size = vec(Player.scale, 0.001, Player.scale), axis = vec(0, 0, 0), pos = vec(self.hitbox.pos.x, 0.5 * Player.scale + self.hitbox.pos.y, -0.5 * Player.scale + self.hitbox.pos.z), texture= 'https://i.imgur.com/5zchhnC.png', emissive = True)
@@ -183,15 +196,18 @@ class Player:
                     self.left_leg_front, self.right_leg_front, self.left_leg_back, self.right_leg_back, self.left_leg_side, self.right_leg_side, self.shoulders, self.left_hand,
                     self.right_hand, self.left_foot, self.right_foot]
 
+        # Create the property model_angle which rotate_model depends on, rotate the model, and then reset model_angle to 
+        # change its orientation relative to the camera's angle
         self.model_angle = 0
         self.rotate_model(-pi / 2)
         self.model_angle = 0
 
+        # Move each part of the model up and in x direction a bit to align it with the hitbox's position
         for part in self.model:
             part.pos.y += 0.93 * Block.scale - Player.scale / 2
             part.pos.x += Player.scale / 2
 
-        # Display hitbox
+        # Display hitbox with a white transparent box
         # self.model += [box(pos = self.hitbox.pos, size = self.hitbox.size, color = color.white, opacity = 0.3)]
     
     def sync_model(self):
@@ -208,13 +224,18 @@ class Player:
             part.rotate(angle = -delta_angle, axis = scene.up, origin = self.hitbox.pos)
     
     def hide_model(self):
+        '''Hide the player's model'''
         for part in self.model:
             part.visible = False
 
     def show_model(self):
+        '''Show the player's model'''
         for part in self.model:
             part.visible = True
 
+# +++ Start of object creation -- Create the player and the blocks making up the world
+
+# Create player and move them to the position (1, 1, 1)
 player = Player(vec(0, Block.scale, 0))
 tp_player(vec(1, 1, 1))
 
@@ -233,6 +254,7 @@ for x in range(3):
                 Block(vec(x, -y, -z), 'grass')
             else:
                 Block(vec(x, -y, -z), 'dirt')
+
 #tree
 for x in range(3):
     for y in range(3, 6):
@@ -241,6 +263,7 @@ for x in range(3):
 for y in range(1, 5):
     Block(vec(1, y, -2), 'wood')
 
+#stepping stones
 Block(vec(3,0,4), 'stone')
 Block(vec(3,0,6), 'stone')
 Block(vec(4,0,6), 'stone')
@@ -249,14 +272,13 @@ Block(vec(4,0,9), 'stone')
 Block(vec(2,0,9), 'stone')
 Block(vec(2,0,10), 'stone')
 Block(vec(2,0,11), 'stone')
+Block(vec(3,0,18), 'stone')
+Block(vec(3,-6,20), 'stone')
 
 #wall
 for y in range(-1,4):
     for z in range(11,16):
         Block(vec(3,y,z), 'water')
-
-Block(vec(3,0,18), 'stone')
-Block(vec(3,-6,20), 'stone')
 
 #stairs
 Block(vec(3,-6,22), 'water')
@@ -273,6 +295,7 @@ Block(vec(3,-1,27), 'water')
 Block(vec(3,-1,28), 'water')
 Block(vec(3,-0,28), 'water')
 
+#target island
 for x in range(1,4):
     for y in range(1,3):
         for z in range(30,33):
@@ -287,7 +310,7 @@ dt = 1.0 / (1.0 * RATE)                     # The time step each time through th
 player.on_ground = False                    # False initially. Keeps track of whether the player is touching the ground
 scene.autoscale = False                     # Avoids changing the view automatically
 scene.userpan = False                       # Disables the default panning controls
-scene.range = 3
+scene.range = 3                             # Default camera distance from the center of the scene
 scene.forward = vec(1, 0, 0)                # Initialize forward as a unit vector in the x direction. Rotates with the camera
 scene.mouse.ray = vec(1, 0, 0)              # Initialize mouse.ray as a unit vector in the x direction. Rotates with the camera
 scene.camera.up = vec(0, 1, 0)              # Initialize camera.up as a unit vector in the y direction. Rotates with the camera, unlike scene.up
@@ -302,11 +325,11 @@ userspin_threshold = 0.3                    # Set the threshold for the mouse po
 dragging = False                            # Keeps track of whether the player is dragging to rotate the camers
 mouse_onscreen = False                      # Keeps track of whether the mouse is on the screen
 mouse_spinning = True                       # Keeps track of whether rotating the camera using the mouse's position is enabled
-first_person = False
-paused = False
+first_person = False                        # Starts off in third person
+paused = False                              # Starts off unpaused
 flying = False                              # Keeps track of whether the player is flying
+current_slot = 1                            # Keeps track of which slot of the player's inventory is currently selected
 inventory = {1: ['water', 1], 2: ['lava', 1]}
-current_slot = 1
 if first_person:
     scene.userzoom = False
     scene.userspin = False
@@ -316,11 +339,11 @@ else:
     scene.userspin = True
     player.show_model()
 
-
+# Visual cursor to show what blocks the player is looking at
 cursor = box(size = vec(0.01, 0.01, 0.01), color = color.black, emissive = True)
 
 # Dictionary mapping a control to whether it is active. Updated by keyboard events
-controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'descend', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot_inc', 'slot_dec', 'toggle_pause', 'grutor_mode', 'instructor_mode']}
+controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'descend', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'toggle_pause', 'grutor_mode', 'instructor_mode']}
 last_controls = {key: controls[key] for key in controls}
 
 # This is the 'event loop' or 'animation loop'
@@ -346,14 +369,13 @@ while True:
     # Rotate player's velocity by the camera angle to make updating it simple
     player.hitbox.vel = rotate(player.hitbox.vel, angle = camera_angle_xz, axis = scene.up)
 
-    # Apply velocity updates in the x and z directions based on the current controls
+    # Apply velocity updates in the x and z directions
     if controls['forward']:
         player.hitbox.vel.x += accel
     elif controls['backward']:
         player.hitbox.vel.x -= accel
     else:
         player.hitbox.vel.x *= friction_coef
-
     if controls['right']:
         player.hitbox.vel.z += accel
     elif controls['left']:
@@ -361,7 +383,7 @@ while True:
     else:
         player.hitbox.vel.z *= friction_coef
 
-    # Set velocity when the player jumps
+    # Set velocity when the player jumps/flies
     if controls['jump'] and (player.on_ground or flying):
         player.hitbox.vel.y = 12 * Block.scale
     elif flying:
@@ -383,7 +405,7 @@ while True:
     # Rotate the velocity back in the camera's direction
     player.hitbox.vel = rotate(player.hitbox.vel, angle = -camera_angle_xz, axis = scene.up)
 
-    # Check for and resolve collisions between the player and all the blocks
+    # Check for and resolve collisions between the player and all the blocks surrounding them
     player.on_ground = False
     hitboxes = []
     for block in get_local_blocks(player.hitbox, dt):
@@ -393,78 +415,104 @@ while True:
     # Update the player's position
     player.hitbox.pos = player.hitbox.pos + player.hitbox.vel * dt
 
+    # Reset the player's position if they fall too far
     if player.hitbox.pos.y < -50:
+        print('You fell into the void')
         tp_player(vec(1, 1, 1))
         player.hitbox.vel = vec(0, 0, 0)
 
     # +++ Start of miscellaneous controls
 
-    # Try to mine the block the player is looking at
-    if controls['mine'] and not last_controls['mine'] or controls['place'] and not last_controls['place']:
+    # Mining and block placing
+    if (controls['mine'] and not last_controls['mine']) or (controls['place'] and not last_controls['place']):
+        # Find the block the player is looking at
         looking_at = block_through(player.hitbox.pos + vec(0, Block.scale / 2 + Player.scale / 2, 0), scene.forward, 5)
+
+        # If the selected action is mining, attempt to mine the block being looked at. Otherwise, attempt to place a block against it
         if controls['mine']:
             mine(looking_at.pos)
-        elif looking_at.block_type != 'air':
-            colliding, t_near, intersection, normal = ray_vs_hitbox(player.hitbox.pos + vec(0, Block.scale / 2 + Player.scale / 2, 0), scene.forward.norm() * 5, looking_at.hitbox)
-            if colliding:
-                # Check to see if the block's new position would intersect the player's current position.
-                new_block_hitbox = looking_at.hitbox.copy()
-                new_block_hitbox.pos += normal * Block.scale
-                new_block_hitbox.size -= 0.001 * vec(1, 1, 1)
-                in_player = hitbox_vs_hitbox(player.hitbox, new_block_hitbox)
-                if not in_player:
-                    block_type = get_from_inventory(current_slot)
-                    if block_type != 'air':
-                        Block(looking_at.pos + normal * Block.scale, block_type)
-                else:
-                    print('Cannot place block here')
         else:
-            print('Must be looking at a block\'s face to place blocks')
+            # Check the currently selected slot in the player's inventory to see if they have a placeable block
+            block_type = get_from_inventory(current_slot)
+            if block_type != 'air':
+                # Only place a block if the block being looked at is not air
+                if looking_at.block_type != 'air':
+                    # Find the normal vector to the face the player is looking at
+                    colliding, t_near, intersection, normal = ray_vs_hitbox(player.hitbox.pos + vec(0, Block.scale / 2 + Player.scale / 2, 0), scene.forward.norm() * 5, looking_at.hitbox)
+                    if colliding:
+                        # Check to see if the placed block's position would intersect the player's current position.
+                        new_block_hitbox = looking_at.hitbox.copy()                         # Copy the hitbox of the block being looked at as the new block's hitbox
+                        new_block_hitbox.pos += normal * Block.scale                        # Adjust the new block's hitbox to be against the face being looked at
+                        new_block_hitbox.size -= 0.001 * vec(1, 1, 1)                       # Small size adjustment to allow for the player's hitbox being right up against the new block's
+                        in_player = hitbox_vs_hitbox(player.hitbox, new_block_hitbox)       # Perform the collision detection
+                        if not in_player:
+                            Block(looking_at.pos + normal * Block.scale, block_type)
+                        else:
+                            print('Cannot place block overlapping with player')
+                    else:
+                        print('If you see this message, the ray vs box collision algorithm failed :(')
+                else:
+                    print('Must be looking at a block\'s face to place blocks')   
+            else:
+                print('You have nothing in your selected slot')
 
     # Toggle first person and third person views
     if controls['toggle_view'] and not last_controls['toggle_view']:
         print('Toggled first person view')
         first_person = not first_person
         if first_person:
+            # Disable default spinning and panning options
             scene.userspin = False
             scene.userzoom = False
             mouse_spinning = False
             dragging = False
+
+            # Set camera position to the player
             move_camera(player)
+
+            # Some vectors need to be reset and the rotates to the current camera angle
             camera_angle_y = pi / 2 - scene.up.diff_angle(scene.forward)
-            scene.forward = rotate(vec(1, 0, 0), angle = -camera_angle_xz, axis = scene.up)
             scene.camera.up = vec(scene.up)
             scene.camera.orthogonal = rotate(vec(0, 0, 1), angle = -camera_angle_xz, axis = scene.up)
-            scene.forward = rotate(scene.forward, angle = camera_angle_y, axis = scene.camera.orthogonal)
             scene.camera.up = rotate(scene.camera.up, angle = camera_angle_y, axis = scene.camera.orthogonal)
+
+            # Hide player model so it doesn't interfere with the first person view
             player.hide_model()
         else:
+            # Enable default spinning and panning options
             scene.userspin = True
             scene.userzoom = True
+
+            # Show player model in third person view
             player.show_model()
 
+    # Check controls dictionary for any inventory slot switches
     for i in range(1, 9):
         if controls['slot' + str(i)] and not last_controls['slot' + str(i)]:
             print('Selected slot ' + str(i))
             current_slot = i
             break
-
+    
+    # Print the player's inventory
     if controls['print_inventory'] and not last_controls['print_inventory']:
         print_inventory()
 
+    # Toggle pausing/unpausing the game
     if controls['toggle_pause'] and not last_controls['toggle_pause']:
             print("The game is paused")
             paused = True
 
+    # Toggle instructor mode
     if controls['instructor_mode'] and not last_controls['instructor_mode']:
         flying = not flying
         if flying:
             max_vel = 12 * Block.scale * vec(1, 1, 1)   # max_vel adjusted for flying
             print('Instructor mode enabled')
         else:
-            max_vel = 5 * Block.scale * vec(1, 14, 1)   # Regular max_vel reset
+            max_vel = 5 * Block.scale * vec(1, 14, 1)   # max_vel reset to non-flying value
             print('Instructor mode disabled')
 
+    # Check for the grutor_mode key
     if controls['grutor_mode'] and not last_controls['grutor_mode']:
         add_inventory('wood', 64)
         print('Grutor mode: 64 blocks of wood were added to your inventory')
@@ -521,11 +569,13 @@ while True:
     elif not dragging and not mouse_spinning:
         mouse_spinning = percent_x == 0 and percent_y == 0
 
-    # Rotate camera based on how far up/down and left/right the user's mouse is, but only if they are not current dragging
+    # Rotate camera based on how far up/down and left/right the user's mouse is
     if mouse_spinning and mouse_onscreen:
         rotate_camera(percent_x * userspin_rate, percent_y * userspin_rate)
 
-    # Only update scene.camera.pos after all the physics updates and rotations are complete to avoid chopiness in the camera movement
+    # +++ Start of GRAPHICAL UPDATES
+
+    # Only update the camera position after all the physics updates and rotations are complete to avoid chopiness in the camera movement
     player.sync_model()
     player.rotate_model(camera_angle_xz - player.model_angle)
     move_camera(player)
@@ -575,10 +625,6 @@ def update_controls(key, pressed):
         controls['toggle_view'] = pressed
     elif key in 'pP':
         controls['print_inventory'] = pressed
-    elif key == '-':
-        controls['slot_dec'] = pressed
-    elif key in '+=':
-        controls['slot_inc'] = pressed
     elif key == 'esc':
         controls['toggle_pause'] = pressed
     elif key in 'gG':
@@ -598,8 +644,8 @@ def mousedown_fun(event):
     previous_mouse_pos = vec(event.pageX, event.pageY, 0)
 
 def mousemove_fun(event):
-    ''' Runs when the mouse is moved on the canvas. According to the documentaiton, it should run regardless 
-        of whether the mouse is being held, but it doesn't
+    ''' Runs when the mouse is moved on the canvas. According to the VPython documentation, it should run regardless 
+        of whether the mouse button is being held down, but it doesn't.
     '''
     global previous_mouse_pos
     mouse_pos = vec(event.pageX, event.pageY, 0)
@@ -669,18 +715,19 @@ def ray_vs_hitbox(origin, ray_dir, hitbox):
         t_z_near >= t_y_far or t_x_near >= t_y_far):
         return (False, 0, vec(0, 0, 0), vec(0, 0, 0))
 
-    # Get the t values for the near and far intersection points. These can be plugged back into the parameterization of the ray to get the actual point
+    # Get the t values for the near and far intersection points. These can be plugged into the parameterization of the ray to get the 3d coordinates of the intersection point
     t_near = max(t_x_near, t_y_near, t_z_near)
     t_far = min(t_x_far, t_y_far, t_z_far)
 
-    # If the furthest intersection point along the ray is less than 0 or the nearest point is greater than 1, the collision didn't occur on the part of part of the ray being checked
+    # If the furthest intersection point along the ray is less than or equal to 0 or the nearest point is greater than 1, the collision didn't occur on the part of part of the ray being checked
     if isNaN(t_near) or isNaN(t_far) or t_far <= 0 or t_near > 1:
         return (False, 0, vec(0, 0, 0), vec(0, 0, 0))
     
+    # Calculate the intersection point
     intersection = origin + ray_dir * t_near
-    normal = vec(0, 0, 0)
 
     # Find the collision normal
+    normal = vec(0, 0, 0)
     if t_x_near > t_y_near and t_x_near > t_z_near:
         normal = vec(-sign(ray_dir.x), 0, 0)
     elif t_y_near > t_x_near and t_y_near > t_z_near:
@@ -688,13 +735,14 @@ def ray_vs_hitbox(origin, ray_dir, hitbox):
     elif t_z_near > t_x_near and t_z_near > t_y_near:
         normal = vec(0, 0, -sign(ray_dir.z))
     
+    # Return all the information about the collision in a tuple
     return (True, t_near, intersection, normal)
 
 def clamp(value, upper, lower = None):
     ''' Clamps a value to within the range [-upper, upper] or, if lower is specified, [lower, upper]
         If the given value for lower is greater than the value for upper (or if only upper is given and it is negative),
         for any value given within [upper, lower], the closer of the two endpoints is returned.
-        Although this function is valid python, there seems to be a bug in VPython where I have to give a lower value
+        Although this function is valid python, there seems to be a bug in VPython where I always have to give a lower value
         or I get an error message.
     '''
     if lower == None:
@@ -718,7 +766,7 @@ def tp_player(new_pos):
 
 def nearest_block(pos, truncFunc = round):
     ''' Return the position of the nearest block to the given position. 
-        The given function for truncFunc is the operation used to return the block position as integers. 
+        The given truncFunc function is the operation used to convert the block position to integers.
         It defaults to the round function
     '''
     block_pos = vec(0, 0, 0)
@@ -762,6 +810,7 @@ def add_inventory(block_type, num):
         inventory[first_unoccupied] = (block_type, 1)
 
 def get_from_inventory(slot):
+    '''Take a block from the given slot in the player's inventory'''
     if slot in inventory:
         block_type, number = inventory[slot]
         if number == 1:
@@ -770,10 +819,10 @@ def get_from_inventory(slot):
             inventory[slot] = [block_type, number - 1]
         return block_type
     else:
-        print('You have nothing in your selected slot')
         return 'air'
 
 def print_inventory():
+    '''Print the player's inventory'''
     if len(inventory) == 0:
         print('Your inventory is empty')
     else:
@@ -785,7 +834,7 @@ def print_inventory():
         
 
 def get_local_blocks(hitbox, dt):
-    '''Return the list of blocks immediately surrounding the given box that it could possible be colliding with'''
+    '''Return the list of blocks immediately surrounding the given box that it could possibly be colliding with'''
     blocks = []
     expanded_hitbox = Hitbox(hitbox.pos + hitbox.vel * dt / 2, vec(abs(hitbox.vel.x * dt), abs(hitbox.vel.y * dt), abs(hitbox.vel.z * dt)) + hitbox.size)
     v0, v1 = expanded_hitbox.get_vertices()
@@ -810,7 +859,7 @@ def hitbox_vs_hitbox(hitboxA, hitboxB):
             A2.z > B1.z and A1.z < B2.z)
 
 def get_collision_manifold(hitboxA, hitboxB, dt):
-    '''Gets the collision manifold of hitboxA and hitboxB, assuming hitboxA is the one that was moving'''
+    '''Gets the collision manifold of hitboxA and hitboxB, assuming hitboxA is the one moving'''
     # If A's velocity is 0, it can't be about to collide with B in the next frame, since it isn't moving
     if hitboxA.vel.mag == 0:
         return (False, 0, vec(0, 0, 0), vec(0, 0, 0))
@@ -818,6 +867,8 @@ def get_collision_manifold(hitboxA, hitboxB, dt):
     # Create the expanded hitbox
     expanded_hitbox = hitboxB.copy()
     expanded_hitbox.size += hitboxA.size
+
+    # Return the results of testing hitboxA's velocity ray against the expanded hitbox
     return ray_vs_hitbox(hitboxA.pos, hitboxA.vel * dt, expanded_hitbox)
 
 def insertion_sort(L, lt):
@@ -849,9 +900,8 @@ def insertion_sort(L, lt):
     return L
 
 def resolve_collisions(hitboxA, hitboxes, dt):
-    ''' Check for and resolve a collision between the given hitbox and the list of hitboxes. If a collision 
-        is found, hitboxA is displaced to resolve the collision and has its velocity in the direction of the 
-        collision canceled.
+    ''' Check for and resolve a collision between the given hitbox and the list of hitboxes. If collisions 
+        are detected, hitboxA has part of its velocity in the direction of each collision canceled.
     '''
     faces = {'top': False}
 
@@ -863,7 +913,7 @@ def resolve_collisions(hitboxA, hitboxes, dt):
             manifold_wrappers += [[manifold, hitboxB]]
     
     def comp_t_near(wrapperA, wrapperB):
-        """Compare the t_near values of two manifolds"""
+        """Helper function to compare the t_near values of two manifolds"""
         return wrapperA[0][1] < wrapperB[0][1]
 
     # Sort manifolds by the ones corresponding to the hitbox closest to hitboxA
@@ -905,7 +955,7 @@ def rotate_camera(angle_x, angle_y):
         elif camera_angle_y - angle_y > down_bound:
             angle_y = camera_angle_y - down_bound
         
-        # Do the actual rotation
+        # Do the y rotation
         scene.camera.orthogonal = scene.forward.cross(scene.camera.up)
         scene.camera.up = rotate(scene.camera.up, angle = angle_y, axis = scene.camera.orthogonal)
         scene.mouse.ray = rotate(scene.mouse.ray, angle = angle_y, axis = scene.camera.orthogonal)
