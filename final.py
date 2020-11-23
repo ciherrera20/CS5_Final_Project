@@ -304,7 +304,8 @@ mouse_onscreen = False                      # Keeps track of whether the mouse i
 mouse_spinning = True                       # Keeps track of whether rotating the camera using the mouse's position is enabled
 first_person = False
 paused = False
-inventory = {1: ['water', 1], 2: ['lava', 1], 3: ['wood', 64]}
+flying = False                              # Keeps track of whether the player is flying
+inventory = {1: ['water', 1], 2: ['lava', 1]}
 current_slot = 1
 if first_person:
     scene.userzoom = False
@@ -319,7 +320,7 @@ else:
 cursor = box(size = vec(0.01, 0.01, 0.01), color = color.black, emissive = True)
 
 # Dictionary mapping a control to whether it is active. Updated by keyboard events
-controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot_inc', 'slot_dec', 'toggle_pause']}
+controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'descend', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot_inc', 'slot_dec', 'toggle_pause', 'grutor_mode', 'instructor_mode']}
 last_controls = {key: controls[key] for key in controls}
 
 # This is the 'event loop' or 'animation loop'
@@ -361,11 +362,18 @@ while True:
         player.hitbox.vel.z *= friction_coef
 
     # Set velocity when the player jumps
-    if controls['jump'] and player.on_ground:
+    if controls['jump'] and (player.on_ground or flying):
         player.hitbox.vel.y = 12 * Block.scale
+    elif flying:
+        if controls['descend']:
+            player.hitbox.vel.y = -12 * Block.scale
+        else:
+            player.hitbox.vel.y = 0
+
 
     # Apply gravity
-    player.hitbox.vel.y += gravity * dt
+    if not flying:
+        player.hitbox.vel.y += gravity * dt
 
     # Apply max velocity clamping
     player.hitbox.vel.x = clamp(player.hitbox.vel.x, max_vel.x, -max_vel.x)
@@ -378,11 +386,8 @@ while True:
     # Check for and resolve collisions between the player and all the blocks
     player.on_ground = False
     hitboxes = []
-    # for key in Block.blocks:
-    #     hitboxes += [Block.blocks[key].hitbox]
     for block in get_local_blocks(player.hitbox, dt):
         hitboxes += [block.hitbox]
-    # print(len(hitboxes))
     player.on_ground = resolve_collisions(player.hitbox, hitboxes, dt)['top']
 
     # Update the player's position
@@ -416,6 +421,7 @@ while True:
         else:
             print('Must be looking at a block\'s face to place blocks')
 
+    # Toggle first person and third person views
     if controls['toggle_view'] and not last_controls['toggle_view']:
         print('Toggled first person view')
         first_person = not first_person
@@ -449,6 +455,19 @@ while True:
     if controls['toggle_pause'] and not last_controls['toggle_pause']:
             print("The game is paused")
             paused = True
+
+    if controls['instructor_mode'] and not last_controls['instructor_mode']:
+        flying = not flying
+        if flying:
+            max_vel = 12 * Block.scale * vec(1, 1, 1)   # max_vel adjusted for flying
+            print('Instructor mode enabled')
+        else:
+            max_vel = 5 * Block.scale * vec(1, 14, 1)   # Regular max_vel reset
+            print('Instructor mode disabled')
+
+    if controls['grutor_mode'] and not last_controls['grutor_mode']:
+        add_inventory('wood', 64)
+        print('Grutor mode: 64 blocks of wood were added to your inventory')
 
     # +++ Start of CAMERA ROTATIONS
 
@@ -528,16 +547,18 @@ def keydown_fun(event):
 
 def update_controls(key, pressed):
     '''Updates the controls dictionary given a key string and whether it was just pressed or released'''
-    if key in 'wWiI':
+    if key in 'wW':
         controls['forward'] = pressed
-    elif key in 'aAjJ':
+    elif key in 'aA':
         controls['left'] = pressed
-    elif key in 'sSkK':
+    elif key in 'sS':
         controls['backward'] = pressed
-    elif key in 'dDlL':
+    elif key in 'dD':
         controls['right'] = pressed
     elif key == ' ':
         controls['jump'] = pressed
+    elif key == 'shift':
+        controls['descend'] = pressed
     elif key == 'up':
         controls['camera_up'] = pressed
     elif key == 'left':
@@ -560,6 +581,10 @@ def update_controls(key, pressed):
         controls['slot_inc'] = pressed
     elif key == 'esc':
         controls['toggle_pause'] = pressed
+    elif key in 'gG':
+        controls['grutor_mode'] = pressed
+    elif key in 'iI':
+        controls['instructor_mode'] = pressed
     for i in range(1, 9):
         if key == str(i):
             controls['slot' + str(i)] = pressed
@@ -719,16 +744,16 @@ def mine(pos):
     else:
         print('Removed block of type', block.block_type)
         block.remove()
-        add_inventory(block.block_type)
+        add_inventory(block.block_type, 1)
 
-def add_inventory(block_type):
+def add_inventory(block_type, num):
     '''Add a block to the player's inventory'''
     first_unoccupied = 0
     for slot in range(1, 9):
         if slot in inventory:
             slot_type, number = inventory[slot]
             if slot_type == block_type:
-                inventory[slot] = [slot_type, number + 1]
+                inventory[slot] = [slot_type, number + num]
                 return
         elif first_unoccupied == 0:
             first_unoccupied = slot
