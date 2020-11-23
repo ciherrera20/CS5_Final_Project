@@ -123,7 +123,6 @@ class Block:
 
     def remove(self):
         '''Remove the block by replacing it with an air block'''
-        print("Removing block of type", self.block_type)
         Block(self.pos, 'air')
 
 class Player:
@@ -203,7 +202,7 @@ class Player:
         self.hitbox.last_pos = vec(self.hitbox.pos)
 
     def rotate_model(self, delta_angle):
-        """Rotate the player's model by the give angle around the y axis"""
+        '''Rotate the player's model by the give angle around the y axis'''
         self.model_angle += delta_angle
         for part in self.model:
             part.rotate(angle = -delta_angle, axis = scene.up, origin = self.hitbox.pos)
@@ -242,43 +241,43 @@ for x in range(3):
 for y in range(1, 5):
     Block(vec(1, y, -2), 'wood')
 
-Block(vec(3,0,4), "stone")
-Block(vec(3,0,6), "stone")
-Block(vec(4,0,6), "stone")
-Block(vec(4,0,7), "stone")
-Block(vec(4,0,9), "stone")
-Block(vec(2,0,9), "stone")
-Block(vec(2,0,10), "stone")
-Block(vec(2,0,11), "stone")
+Block(vec(3,0,4), 'stone')
+Block(vec(3,0,6), 'stone')
+Block(vec(4,0,6), 'stone')
+Block(vec(4,0,7), 'stone')
+Block(vec(4,0,9), 'stone')
+Block(vec(2,0,9), 'stone')
+Block(vec(2,0,10), 'stone')
+Block(vec(2,0,11), 'stone')
 
 #wall
 for y in range(-1,4):
     for z in range(11,16):
-        Block(vec(3,y,z), "water")
+        Block(vec(3,y,z), 'water')
 
-Block(vec(3,0,18), "stone")
-Block(vec(3,-6,20), "stone")
+Block(vec(3,0,18), 'stone')
+Block(vec(3,-6,20), 'stone')
 
 #stairs
-Block(vec(3,-6,22), "water")
-Block(vec(3,-6,23), "water")
-Block(vec(3,-5,23), "water")
-Block(vec(3,-5,24), "water")
-Block(vec(3,-4,24), "water")
-Block(vec(3,-4,25), "water")
-Block(vec(3,-3,25), "water")
-Block(vec(3,-3,26), "water")
-Block(vec(3,-2,26), "water")
-Block(vec(3,-2,27), "water")
-Block(vec(3,-1,27), "water")
-Block(vec(3,-1,28), "water")
-Block(vec(3,-0,28), "water")
+Block(vec(3,-6,22), 'water')
+Block(vec(3,-6,23), 'water')
+Block(vec(3,-5,23), 'water')
+Block(vec(3,-5,24), 'water')
+Block(vec(3,-4,24), 'water')
+Block(vec(3,-4,25), 'water')
+Block(vec(3,-3,25), 'water')
+Block(vec(3,-3,26), 'water')
+Block(vec(3,-2,26), 'water')
+Block(vec(3,-2,27), 'water')
+Block(vec(3,-1,27), 'water')
+Block(vec(3,-1,28), 'water')
+Block(vec(3,-0,28), 'water')
 
 for x in range(1,4):
     for y in range(1,3):
         for z in range(30,33):
-            Block(vec(x, 0, z), "grass")
-            Block(vec(x, -y, z), "dirt")
+            Block(vec(x, 0, z), 'grass')
+            Block(vec(x, -y, z), 'dirt')
 
 # +++ Start of game loop section -- update the position of the player and other entities continuously
 
@@ -304,6 +303,8 @@ dragging = False                            # Keeps track of whether the player 
 mouse_onscreen = False                      # Keeps track of whether the mouse is on the screen
 mouse_spinning = True                       # Keeps track of whether rotating the camera using the mouse's position is enabled
 first_person = False
+inventory = {1: ('water', 1), 2: ('lava', 1)}
+current_slot = 1
 if first_person:
     scene.userzoom = False
     scene.userspin = False
@@ -317,7 +318,7 @@ else:
 cursor = box(size = vec(0.01, 0.01, 0.01), color = color.black, emissive = True)
 
 # Dictionary mapping a control to whether it is active. Updated by keyboard events
-controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view']}
+controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot_inc', 'slot_dec']}
 last_controls = {key: controls[key] for key in controls}
 
 # This is the 'event loop' or 'animation loop'
@@ -378,6 +379,10 @@ while True:
     # Update the player's position
     player.hitbox.pos = player.hitbox.pos + player.hitbox.vel * dt
 
+    if player.hitbox.pos.y < -50:
+        tp_player(vec(1, 1, 1))
+        player.hitbox.vel = vec(0, 0, 0)
+
     # +++ Start of miscellaneous controls
 
     # Try to mine the block the player is looking at
@@ -394,14 +399,16 @@ while True:
                 new_block_hitbox.size -= 0.001 * vec(1, 1, 1)
                 in_player = hitbox_vs_hitbox(player.hitbox, new_block_hitbox)
                 if not in_player:
-                    Block(looking_at.pos + normal * Block.scale, 'dirt')
+                    block_type = get_from_inventory(current_slot)
+                    if block_type != 'air':
+                        Block(looking_at.pos + normal * Block.scale, block_type)
                 else:
                     print('Cannot place block here')
         else:
             print('Must be looking at a block\'s face to place blocks')
 
     if controls['toggle_view'] and not last_controls['toggle_view']:
-        print("Toggled first person view")
+        print('Toggled first person view')
         first_person = not first_person
         if first_person:
             scene.userspin = False
@@ -420,6 +427,9 @@ while True:
             scene.userspin = True
             scene.userzoom = True
             player.show_model()
+
+    if controls['print_inventory'] and not last_controls['print_inventory']:
+        print_inventory()
 
     # +++ Start of CAMERA ROTATIONS
 
@@ -493,7 +503,12 @@ def keyup_fun(event):
 
 def keydown_fun(event):
     '''This function is called each time a key is pressed'''
+    global current_slot
     key = event.key
+    for i in range(1, 9):
+        if key == str(i):
+            print('Selected slot ' + str(i))
+            current_slot = i
     update_controls(key, True)
 
 def update_controls(key, pressed):
@@ -522,6 +537,12 @@ def update_controls(key, pressed):
         controls['place'] = pressed
     elif key in 'vV':
         controls['toggle_view'] = pressed
+    elif key in 'pP':
+        controls['print_inventory'] = pressed
+    elif key == '-':
+        controls['slot_dec'] = pressed
+    elif key in '+=':
+        controls['slot_inc'] = pressed
 
 previous_mouse_pos = vec(0, 0, 0)
 def mousedown_fun(event):
@@ -675,7 +696,47 @@ def mine(pos):
     if block.block_type == 'air':
         print('Cannot mine air')
     else:
+        print('Removed block of type', block.block_type)
         block.remove()
+        add_inventory(block.block_type)
+
+def add_inventory(block_type):
+    '''Add a block to the player's inventory'''
+    first_unoccupied = 0
+    for slot in range(1, 9):
+        if slot in inventory:
+            slot_type, number = inventory[slot]
+            if slot_type == block_type:
+                inventory[slot] = (slot_type, number + 1)
+                return
+        elif first_unoccupied == 0:
+            first_unoccupied = slot
+    
+    if first_unoccupied != 0:
+        inventory[first_unoccupied] = (block_type, 1)
+
+def get_from_inventory(slot):
+    if slot in inventory:
+        block_type, number = inventory[slot]
+        if number == 1:
+            del inventory[slot]
+        else:
+            inventory[slot] = (block_type, number - 1)
+        return block_type
+    else:
+        print('You have nothing in your selected slot')
+        return 'air'
+
+def print_inventory():
+    if len(inventory) == 0:
+        print('Your inventory is empty')
+    else:
+        print('Your inventory contains')
+        for slot in inventory:
+            block_type, number = inventory[slot]
+            print(str(number) + ' x ' + block_type + ' in slot ' + str(slot))
+    print('Slot ' + str(current_slot) + ' is selected')
+        
 
 def get_local_blocks(hitbox, dt):
     '''Return the list of blocks immediately surrounding the given box that it could possible be colliding with'''
