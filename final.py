@@ -303,7 +303,8 @@ dragging = False                            # Keeps track of whether the player 
 mouse_onscreen = False                      # Keeps track of whether the mouse is on the screen
 mouse_spinning = True                       # Keeps track of whether rotating the camera using the mouse's position is enabled
 first_person = False
-inventory = {1: ('water', 1), 2: ('lava', 1)}
+paused = False
+inventory = {1: ['water', 1], 2: ['lava', 1], 3: ['wood', 64]}
 current_slot = 1
 if first_person:
     scene.userzoom = False
@@ -318,13 +319,21 @@ else:
 cursor = box(size = vec(0.01, 0.01, 0.01), color = color.black, emissive = True)
 
 # Dictionary mapping a control to whether it is active. Updated by keyboard events
-controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot_inc', 'slot_dec']}
+controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot_inc', 'slot_dec', 'toggle_pause']}
 last_controls = {key: controls[key] for key in controls}
 
 # This is the 'event loop' or 'animation loop'
 # Each pass through the loop will animate one step in time, dt
 while True:
     rate(RATE)                             # maximum number of times per second the while loop runs
+
+    # Unpause control
+    if paused:
+        if controls['toggle_pause'] and not last_controls['toggle_pause']:
+            print('The game is running')
+            paused = False
+        last_controls = {key: controls[key] for key in controls}
+        continue
 
     # +++ Start of PHYSICS UPDATES -- update all velocities and positions here, every time step
     
@@ -428,8 +437,18 @@ while True:
             scene.userzoom = True
             player.show_model()
 
+    for i in range(1, 9):
+        if controls['slot' + str(i)] and not last_controls['slot' + str(i)]:
+            print('Selected slot ' + str(i))
+            current_slot = i
+            break
+
     if controls['print_inventory'] and not last_controls['print_inventory']:
         print_inventory()
+
+    if controls['toggle_pause'] and not last_controls['toggle_pause']:
+            print("The game is paused")
+            paused = True
 
     # +++ Start of CAMERA ROTATIONS
 
@@ -505,10 +524,6 @@ def keydown_fun(event):
     '''This function is called each time a key is pressed'''
     global current_slot
     key = event.key
-    for i in range(1, 9):
-        if key == str(i):
-            print('Selected slot ' + str(i))
-            current_slot = i
     update_controls(key, True)
 
 def update_controls(key, pressed):
@@ -543,6 +558,12 @@ def update_controls(key, pressed):
         controls['slot_dec'] = pressed
     elif key in '+=':
         controls['slot_inc'] = pressed
+    elif key == 'esc':
+        controls['toggle_pause'] = pressed
+    for i in range(1, 9):
+        if key == str(i):
+            controls['slot' + str(i)] = pressed
+            break
 
 previous_mouse_pos = vec(0, 0, 0)
 def mousedown_fun(event):
@@ -707,7 +728,7 @@ def add_inventory(block_type):
         if slot in inventory:
             slot_type, number = inventory[slot]
             if slot_type == block_type:
-                inventory[slot] = (slot_type, number + 1)
+                inventory[slot] = [slot_type, number + 1]
                 return
         elif first_unoccupied == 0:
             first_unoccupied = slot
@@ -721,7 +742,7 @@ def get_from_inventory(slot):
         if number == 1:
             del inventory[slot]
         else:
-            inventory[slot] = (block_type, number - 1)
+            inventory[slot] = [block_type, number - 1]
         return block_type
     else:
         print('You have nothing in your selected slot')
@@ -774,6 +795,34 @@ def get_collision_manifold(hitboxA, hitboxB, dt):
     expanded_hitbox.size += hitboxA.size
     return ray_vs_hitbox(hitboxA.pos, hitboxA.vel * dt, expanded_hitbox)
 
+def insertion_sort(L, lt):
+    """ Implementation of insertion sort given a less than comparator function. Using the key parameter in python's 
+        built in sorted function doesn't seem to work in VPython. Solely used for sorting collision manifolds based
+        on which collision occurs first. Since the actual number of blocks the player is colliding with at any point
+        in time should be relatively small, insertion sort should be a good choice to quickly sort them.
+    """
+    for i in range(len(L)):
+        # Element to be inserted into the part of the list behind it
+        a = L[i]
+
+        # Loop through the list behind the current element to be inserted
+        for j in range(0, i):
+            # Element to compare against
+            b = L[i - j - 1]
+
+            # If a < b, swap b one position up. Otherwise, a's position is right in front of b
+            if lt(a, b):
+                L[i - j] = b
+
+                # If we are at the beginning of the list, that means a is smaller than all the elements behind it, and all those elements have been shifted 
+                # one position forward. Therefore, the first element of the list is set to a
+                if j == i - 1:
+                    L[0] = a
+            else:
+                L[i - j] = a
+                break
+    return L
+
 def resolve_collisions(hitboxA, hitboxes, dt):
     ''' Check for and resolve a collision between the given hitbox and the list of hitboxes. If a collision 
         is found, hitboxA is displaced to resolve the collision and has its velocity in the direction of the 
@@ -781,27 +830,30 @@ def resolve_collisions(hitboxA, hitboxes, dt):
     '''
     faces = {'top': False}
 
-    # Store the manifolds in a typle with the hitbox that generated it
+    # Store the manifolds in a tuple with the hitbox that generated it
     manifold_wrappers = []
     for hitboxB in hitboxes:
         manifold = get_collision_manifold(hitboxA, hitboxB, dt)
         if manifold[0]:
-            manifold_wrappers += [(manifold, hitboxB)]
+            manifold_wrappers += [[manifold, hitboxB]]
     
-    def get_t_near(manifold):
-        return wrapper[0][1]
+    def comp_t_near(wrapperA, wrapperB):
+        """Compare the t_near values of two manifolds"""
+        return wrapperA[0][1] < wrapperB[0][1]
 
     # Sort manifolds by the ones corresponding to the hitbox closest to hitboxA
-    manifold_wrappers = sorted(manifold_wrappers, key = get_t_near)
+    # manifold_wrappers = sorted(manifold_wrappers, key = get_t_near)   # Doesn't work
+    # manifold_wrappers = sorted(manifold_wrappers)                     # Also doesn't work
+    insertion_sort(manifold_wrappers, comp_t_near)                      # I had to implement a sorting algorithm :(
 
     # Loop through sorted manifolds and resolve the collisions
     for manifold, hitboxB in manifold_wrappers:
-        # colliding, t_near, intersection, normal = manifold
+        # The manifold has to be recalculated since resolving previous collisions changes the velocity of the hitbox
         colliding, t_near, intersection, normal = get_collision_manifold(hitboxA, hitboxB, dt)
-        if normal.y == 1:
-            faces['top'] = True
-        # hitboxA.vel -= hitboxA.vel.proj(normal) * (1 - t_near)
-        hitboxA.vel += vec(normal.x * abs(hitboxA.vel.x), normal.y * abs(hitboxA.vel.y), normal.z * abs(hitboxA.vel.z)) * (1 - t_near)
+        if colliding:
+            if normal.y == 1:
+                faces['top'] = True
+            hitboxA.vel += vec(normal.x * abs(hitboxA.vel.x), normal.y * abs(hitboxA.vel.y), normal.z * abs(hitboxA.vel.z)) * (1 - t_near)
 
     return faces
 
