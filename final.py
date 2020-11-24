@@ -21,16 +21,16 @@ class Hitbox:
     ''' Wrapper class to hold information about axis aligned hitboxes. Used for collision detection instead of the 
         box class in VPython, since the hitboxes don't need to be displayed or have as many options.
     '''
-    def __init__(self, pos, size, velocity = vec(0, 0, 0)):
+    def __init__(self, pos, size, vel = vec(0, 0, 0)):
         self.pos = pos
-        self.velocity = velocity
+        self.vel = vel
         self.size = size
 
     def get_vertices(self):
         return (vec(self.pos.x - self.size.x / 2, self.pos.y - self.size.y / 2, self.pos.z - self.size.z / 2), vec(self.pos.x + self.size.x / 2, self.pos.y + self.size.y / 2, self.pos.z + self.size.z / 2))
 
     def copy(self):
-        return Hitbox(vec(self.pos), vec(self.size), vec(self.velocity))
+        return Hitbox(vec(self.pos), vec(self.size), vec(self.vel))
 
 class Face:
     '''Wrapper class for a quad object to allow it to be easily created, textured/colored, moved, and rotated'''
@@ -68,22 +68,28 @@ class Face:
 class Block:
     '''Represents the blocks that make up the world'''
     scale = 1       # Everything should be defined in relation to this block scale, but we haven't actually tested changing it
-    color_map = {'dirt': vec(127 / 255, 92 / 255, 7 / 255), 'leaf': vec(12 / 255, 179 / 255, 26 / 255), 'stone': 0.5 * vec(1, 1, 1)}
+    color_map = {'dirt': vec(127 / 255, 92 / 255, 7 / 255), 'leaf': vec(12 / 255, 179 / 255, 26 / 255), 'cobblestone': 0.5 * vec(1, 1, 1)}
     texture_map = {'dirt': texture = 'https://lh3.googleusercontent.com/DpmqnZGty6vns7713z1kTAp3AwBqrZ5ZYz_jf-x04p3lFfQ3Q9j5KruZ-v81846PtM1A9HMHvxQkPpoOqViuvA=s400', 
-                'stone': texture = 'https://art.pixilart.com/df108d01cd72892.png',
+                'cobblestone': texture = 'https://i.imgur.com/2wWquQv.png',
                 'lava': texture = 'https://qph.fs.quoracdn.net/main-qimg-5691a6bcf4bd21df68e741ee1d9d4e0f',
                 'water': texture = 'https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcR-ErVpce1X6Y7Z4bYIK9PJfLL4hh_R9nvbFg&usqp=CAU',
                 'wood': texture = 'https://i.imgur.com/n6J1Jhz.jpg',
                 'leaf': texture = 'https://i.imgur.com/E4ycyzv.jpg',
                 'grass_top': texture = {'file': 'https://lh3.googleusercontent.com/0Xh1P9-7QIXw2j-TM5lGIo5Vvtkq3UIwynD04RgngIOU-4KOy06ZONL93Ht4YyCXEVXojj5Xn-H1m6NHC4rmW-g=s400', 'place':['sides']},
                 'grass': texture = {'file':'https://lh3.googleusercontent.com/2ZdPa8KBDybnUudpc9yRmaCU3DYHH4SL7gxRTPwyk1oCn_1xCzntDLkb02MChMipFu-N3BzNAtXP2BCiwOl9WgM', 'place':['sides']}}
+    solid_map = {'dirt': True, 'air': False, 'water': False, 'lava': False, 'wood': True, 'grass': True, 'leaf': True, 'cobblestone': True}
     blocks = {}     # Map of grid positions to the blocks occupying them
-    def __init__(self, pos, block_type):
+    def __init__(self, pos, block_type, block_data = 0):
         # Align the block to a grid
         self.pos = vec(0, 0, 0)
         self.pos.x = floor(pos.x) * Block.scale + Block.scale / 2
         self.pos.y = floor(pos.y) * Block.scale + Block.scale / 2
         self.pos.z = floor(pos.z) * Block.scale + Block.scale / 2
+        self.block_data = block_data
+        if block_type in Block.solid_map:
+            self.solid = Block.solid_map[block_type]
+        else:
+            self.solid = False
 
         # Array to hold the VPython objects which make up the block's model
         self.model = []
@@ -97,6 +103,31 @@ class Block:
             # Default is no textures and a magenta color indicating an unknown block
             block_north = block_east = block_south = block_west = block_top = block_bottom = None
             block_color = color.magenta
+            if block_type in Block.texture_map:
+                block_north = block_east = block_south = block_west = block_top = block_bottom = Block.texture_map[block_type]
+                block_color = vec(1, 1, 1)
+                if block_type == 'grass':
+                    block_north = block_east = block_south = block_west = Block.texture_map['grass']
+                    block_top = Block.texture_map['grass_top']
+                    block_bottom = Block.texture_map['dirt']
+                
+                #checks when lava or water and block_data counts how many blocks can go out
+                elif (block_type == 'water' or block_type == 'lava') and self.block_data < 5 and pos.y > -10:
+                    first_around = [vec(pos.x+1,pos.y,pos.z), vec(pos.x-1,pos.y,pos.z), vec(pos.x,pos.y,pos.z+1), vec(pos.x,pos.y,pos.z-1)]
+                    around = [vec(pos.x+1,pos.y,pos.z), vec(pos.x-1,pos.y,pos.z), vec(pos.x,pos.y,pos.z+1), vec(pos.x,pos.y,pos.z-1), vec(pos.x,pos.y-1,pos.z-1), vec(pos.x,pos.y+1,pos.z)]
+                    #checks if block below is empty
+                    if block_at(pos + vec(0,-1,0)).block_type == 'air':
+                        Block(pos + vec(0,-1,0), block_type, self.block_data) 
+                    else: 
+                        #loops through possible directions the flow can go
+                        for i in first_around:
+                            closest = block_at(i)
+                            if closest.block_type == 'air':
+                                Block(i,self.block_type, self.block_data + 1)
+                    for a in around: 
+                        nearby = block_at(a)
+                        if (self.block_type == "water" and nearby.block_type == 'lava') or (self.block_type == "lava" and nearby.block_type == 'water'):
+                            Block(a, 'cobblestone')
 
             # If the block type is found in the texture map, apply those textures
             if block_type in Block.texture_map:
@@ -233,11 +264,58 @@ class Player:
         for part in self.model:
             part.visible = True
 
+class Entity:
+    entities = []
+    def __init__(self, pos, size, vel = vec(0, 0, 0), center_point = vec(0, 0, 0), k = 1):
+        actual_pos = vec(0, 0, 0)
+        actual_pos.x = floor(pos.x) * Block.scale + Block.scale / 2
+        actual_pos.y = floor(pos.y) * Block.scale + Block.scale / 2
+        actual_pos.z = floor(pos.z) * Block.scale + Block.scale / 2
+
+        self.center_point = vec(0, 0, 0)
+        self.center_point.x = floor(center_point.x) * Block.scale + Block.scale / 2
+        self.center_point.y = floor(center_point.y) * Block.scale + Block.scale / 2
+        self.center_point.z = floor(center_point.z) * Block.scale + Block.scale / 2
+
+        self.hitbox = Hitbox(actual_pos, size, vel)
+        self.hitbox.last_pos = vec(actual_pos)
+        self.k = k
+        self.model = [box(pos = actual_pos, size = size, color = color.green, emissive = True)]
+        Entity.entities += [self]
+    
+    def physics_update(self, dt):
+        '''Update acceleration to point toward the center point'''
+        self.hitbox.accel = -self.k * (self.hitbox.pos - self.center_point)
+        self.hitbox.vel += self.hitbox.accel * dt
+        self.hitbox.pos += self.hitbox.vel * dt
+        self.sync_model()
+    
+    def sync_model(self):
+        '''Move all the boxes which make up the entity's model the same amount that the entity's hitbox has moved'''
+        displacement = self.hitbox.pos - self.hitbox.last_pos
+        for box in self.model:
+            box.pos += displacement
+        self.hitbox.last_pos = vec(self.hitbox.pos)
+    
+    def hide_model(self):
+        '''Hide the entity's model'''
+        for part in self.model:
+            part.visible = False
+
+    def show_model(self):
+        '''Show the entity's model'''
+        for part in self.model:
+            part.visible = True
+
+
 # +++ Start of object creation -- Create the player and the blocks making up the world
 
 # Create player and move them to the position (1, 1, 1)
 player = Player(vec(0, Block.scale, 0))
 tp_player(vec(1, 1, 1))
+
+Entity(pos = vec(6, 1, 6), size = vec(1, 1, 1), center_point = vec(3, 1, 6), k = 3)
+Entity(pos = vec(2, 1, 9), size = vec(1, 1, 1), vel = vec(0, 0, 0), center_point = vec(2, 1, 11), k = 3)
 
 #island
 for x in range(7):
@@ -254,7 +332,6 @@ for x in range(3):
                 Block(vec(x, -y, -z), 'grass')
             else:
                 Block(vec(x, -y, -z), 'dirt')
-
 #tree
 for x in range(3):
     for y in range(3, 6):
@@ -263,44 +340,122 @@ for x in range(3):
 for y in range(1, 5):
     Block(vec(1, y, -2), 'wood')
 
-#stepping stones
-Block(vec(3,0,4), 'stone')
-Block(vec(3,0,6), 'stone')
-Block(vec(4,0,6), 'stone')
-Block(vec(4,0,7), 'stone')
-Block(vec(4,0,9), 'stone')
-Block(vec(2,0,9), 'stone')
-Block(vec(2,0,10), 'stone')
-Block(vec(2,0,11), 'stone')
-Block(vec(3,0,18), 'stone')
-Block(vec(3,-6,20), 'stone')
+Block(vec(3,0,4), 'cobblestone')
+Block(vec(3,0,6), 'cobblestone')
+Block(vec(4,0,6), 'cobblestone')
+Block(vec(4,0,7), 'cobblestone')
+Block(vec(4,0,9), 'cobblestone')
+Block(vec(2,0,9), 'cobblestone')
+Block(vec(2,0,10), 'cobblestone')
+Block(vec(2,0,11), 'cobblestone')
 
 #wall
 for y in range(-1,4):
     for z in range(11,16):
-        Block(vec(3,y,z), 'water')
+        Block(vec(3,y,z), 'cobblestone')
+
+Block(vec(3,0,18), 'cobblestone')
+Block(vec(3,-6,20), 'cobblestone')
 
 #stairs
-Block(vec(3,-6,22), 'water')
-Block(vec(3,-6,23), 'water')
-Block(vec(3,-5,23), 'water')
-Block(vec(3,-5,24), 'water')
-Block(vec(3,-4,24), 'water')
-Block(vec(3,-4,25), 'water')
-Block(vec(3,-3,25), 'water')
-Block(vec(3,-3,26), 'water')
-Block(vec(3,-2,26), 'water')
-Block(vec(3,-2,27), 'water')
-Block(vec(3,-1,27), 'water')
-Block(vec(3,-1,28), 'water')
-Block(vec(3,-0,28), 'water')
+Block(vec(3,-6,22), 'wood')
+Block(vec(3,-6,23), 'wood')
+Block(vec(3,-5,23), 'wood')
+Block(vec(3,-5,24), 'wood')
+Block(vec(3,-4,24), 'wood')
+Block(vec(3,-4,25), 'wood')
+Block(vec(3,-3,25), 'wood')
+Block(vec(3,-3,26), 'wood')
+Block(vec(3,-2,26), 'wood')
+Block(vec(3,-2,27), 'wood')
+Block(vec(3,-1,27), 'wood')
+Block(vec(3,-1,28), 'wood')
+Block(vec(3,-0,28), 'wood')
 
-#target island
+
+#rest island
 for x in range(1,4):
     for y in range(1,3):
         for z in range(30,33):
             Block(vec(x, 0, z), 'grass')
             Block(vec(x, -y, z), 'dirt')
+
+Block(vec(0,0,35), 'cobblestone')
+Block(vec(0,-1,37), 'cobblestone')
+Block(vec(0,-1,39), 'cobblestone')
+Block(vec(0,-1,41), 'cobblestone')
+Block(vec(0,0,43), 'cobblestone')
+Block(vec(3,0,45), 'cobblestone')
+Block(vec(3,0,48), 'cobblestone')
+Block(vec(3,0,51), 'cobblestone')
+Block(vec(6,0,51), 'cobblestone')
+Block(vec(6,0,54), 'cobblestone')
+Block(vec(6,0,57), 'cobblestone')
+Block(vec(3,0,57), 'cobblestone')
+Block(vec(1,-8,57), 'cobblestone')
+Block(vec(1,-8,59), 'cobblestone')
+
+#pillar: tower or build staircase
+for y in range(1,8):
+    Block(vec(1,-y,62), 'cobblestone')
+
+Block(vec(1,0,65), 'cobblestone')
+Block(vec(1,0,66), 'cobblestone')
+Block(vec(1,-1,69), 'cobblestone')
+Block(vec(1,-1,70), 'cobblestone')
+Block(vec(1,-1,71), 'cobblestone')
+Block(vec(3,-1,73), 'cobblestone')
+Block(vec(3,-1,74), 'cobblestone')
+Block(vec(3,-1,75), 'cobblestone')
+Block(vec(1,0,77), 'cobblestone')
+Block(vec(1,0,78), 'cobblestone')
+Block(vec(1,0,79), 'cobblestone')
+
+#rest island
+for x in range(1,4):
+    for y in range(1,3):
+        for z in range(81,84):
+            Block(vec(x, 0, z), 'grass')
+            Block(vec(x, -y, z), 'dirt')
+
+#U1
+Block(vec(2,0,86), 'cobblestone')
+Block(vec(2,0,87), 'cobblestone')
+Block(vec(1,0,87), 'cobblestone')
+Block(vec(3,0,87), 'cobblestone')
+Block(vec(1,1,87), 'cobblestone')
+Block(vec(3,1,87), 'cobblestone')
+Block(vec(1,2,87), 'cobblestone')
+Block(vec(3,2,87), 'cobblestone')
+#U2
+Block(vec(3,0,89), 'cobblestone')
+Block(vec(2,0,89), 'cobblestone')
+Block(vec(4,0,89), 'cobblestone')
+Block(vec(2,1,89), 'cobblestone')
+Block(vec(4,1,89), 'cobblestone')
+Block(vec(2,2,89), 'cobblestone')
+Block(vec(4,2,89), 'cobblestone')
+#U3
+Block(vec(2,0,91), 'cobblestone')
+Block(vec(1,0,91), 'cobblestone')
+Block(vec(3,0,91), 'cobblestone')
+Block(vec(1,1,91), 'cobblestone')
+Block(vec(3,1,91), 'cobblestone')
+Block(vec(1,2,91), 'cobblestone')
+Block(vec(3,2,91), 'cobblestone')
+#U4
+Block(vec(3,0,93), 'cobblestone')
+Block(vec(2,0,93), 'cobblestone')
+Block(vec(4,0,93), 'cobblestone')
+Block(vec(2,1,93), 'cobblestone')
+Block(vec(4,1,93), 'cobblestone')
+Block(vec(2,2,93), 'cobblestone')
+Block(vec(4,2,93), 'cobblestone')
+
+#floor:
+for x in range(-1,5):
+        for z in range(95,100):
+            Block(vec(x, 0, z), 'grass')
 
 # +++ Start of game loop section -- update the position of the player and other entities continuously
 
@@ -325,11 +480,14 @@ userspin_threshold = 0.3                    # Set the threshold for the mouse po
 dragging = False                            # Keeps track of whether the player is dragging to rotate the camers
 mouse_onscreen = False                      # Keeps track of whether the mouse is on the screen
 mouse_spinning = True                       # Keeps track of whether rotating the camera using the mouse's position is enabled
-first_person = False                        # Starts off in third person
+first_person = True                         # Starts off in third person
 paused = False                              # Starts off unpaused
+infinite_blocks = False                      # Keeps track of whether the player has infinite bocks
 flying = False                              # Keeps track of whether the player is flying
 current_slot = 1                            # Keeps track of which slot of the player's inventory is currently selected
-inventory = {1: ['water', 1], 2: ['lava', 1]}
+queued_rot_x = 0                            # Keeps track of the amount of rotation in the x direction queued for the while loop by mousemove_fun
+queued_rot_y = 0                            # Keeps track of the amount of rotation in the y direction queued for the while loop by mousemove_fun
+inventory = {1: ['dirt', 1], 2: ['water', 1], 3: ['lava', 1]}
 if first_person:
     scene.userzoom = False
     scene.userspin = False
@@ -405,6 +563,18 @@ while True:
     # Rotate the velocity back in the camera's direction
     player.hitbox.vel = rotate(player.hitbox.vel, angle = -camera_angle_xz, axis = scene.up)
 
+    # Check for and resolve collisions between the player and the entities
+    for entity in Entity.entities:
+        entity.physics_update(dt)
+        colliding = hitbox_vs_hitbox(player.hitbox, entity.hitbox)
+        if colliding:
+            pos_diff = player.hitbox.pos - entity.hitbox.pos
+            distance = mag(pos_diff)
+            normal = vec(pos_diff.x, 0, pos_diff.z).norm()
+            max_distance = abs((player.hitbox.size + entity.hitbox.size).dot(vec(abs(normal.x), 0, abs(normal.z))))
+            strength = max_distance - distance
+            player.hitbox.vel += -player.hitbox.vel.proj(normal) * (1 - distance / max_distance) + normal * max(entity.hitbox.vel.dot(normal), 0)
+
     # Check for and resolve collisions between the player and all the blocks surrounding them
     player.on_ground = False
     hitboxes = []
@@ -432,29 +602,29 @@ while True:
         if controls['mine']:
             mine(looking_at.pos)
         else:
-            # Check the currently selected slot in the player's inventory to see if they have a placeable block
-            block_type = get_from_inventory(current_slot)
-            if block_type != 'air':
-                # Only place a block if the block being looked at is not air
-                if looking_at.block_type != 'air':
-                    # Find the normal vector to the face the player is looking at
-                    colliding, t_near, intersection, normal = ray_vs_hitbox(player.hitbox.pos + vec(0, Block.scale / 2 + Player.scale / 2, 0), scene.forward.norm() * 5, looking_at.hitbox)
-                    if colliding:
-                        # Check to see if the placed block's position would intersect the player's current position.
-                        new_block_hitbox = looking_at.hitbox.copy()                         # Copy the hitbox of the block being looked at as the new block's hitbox
-                        new_block_hitbox.pos += normal * Block.scale                        # Adjust the new block's hitbox to be against the face being looked at
-                        new_block_hitbox.size -= 0.001 * vec(1, 1, 1)                       # Small size adjustment to allow for the player's hitbox being right up against the new block's
-                        in_player = hitbox_vs_hitbox(player.hitbox, new_block_hitbox)       # Perform the collision detection
-                        if not in_player:
-                            Block(looking_at.pos + normal * Block.scale, block_type)
+            # Only place a block if the block being looked at is not air
+            if looking_at.solid:
+                # Find the normal vector to the face the player is looking at
+                colliding, t_near, intersection, normal = ray_vs_hitbox(player.hitbox.pos + vec(0, Block.scale / 2 + Player.scale / 2, 0), scene.forward.norm() * 5, looking_at.hitbox)
+                if colliding:
+                    # Check to see if the placed block's position would intersect the player's current position.
+                    new_block_hitbox = looking_at.hitbox.copy()                         # Copy the hitbox of the block being looked at as the new block's hitbox
+                    new_block_hitbox.pos += normal * Block.scale                        # Adjust the new block's hitbox to be against the face being looked at
+                    new_block_hitbox.size -= 0.001 * vec(1, 1, 1)                       # Small size adjustment to allow for the player's hitbox being right up against the new block's
+                    in_player = hitbox_vs_hitbox(player.hitbox, new_block_hitbox)       # Perform the collision detection
+                    if not in_player:
+                        # Check the currently selected slot in the player's inventory to see if they have a placeable block
+                        block_type = get_from_inventory(current_slot)
+                        if block_type != 'air':
+                            Block(nearest_block(looking_at.pos, floor) + normal * Block.scale, block_type)
                         else:
-                            print('Cannot place block overlapping with player')
+                            print('You have nothing in your selected slot')
                     else:
-                        print('If you see this message, the ray vs box collision algorithm failed :(')
+                        print('Cannot place block overlapping with player')
                 else:
-                    print('Must be looking at a block\'s face to place blocks')   
+                    print('If you see this message, the ray vs box collision algorithm failed :(')
             else:
-                print('You have nothing in your selected slot')
+                print('Must be looking at a solid block\'s face to place blocks')
 
     # Toggle first person and third person views
     if controls['toggle_view'] and not last_controls['toggle_view']:
@@ -499,7 +669,8 @@ while True:
 
     # Toggle pausing/unpausing the game
     if controls['toggle_pause'] and not last_controls['toggle_pause']:
-            print("The game is paused")
+            print('The game is paused')
+            print(nearest_block(player.hitbox.pos - vec(0, 0.5, 0), round))
             paused = True
 
     # Toggle instructor mode
@@ -514,8 +685,11 @@ while True:
 
     # Check for the grutor_mode key
     if controls['grutor_mode'] and not last_controls['grutor_mode']:
-        add_inventory('wood', 64)
-        print('Grutor mode: 64 blocks of wood were added to your inventory')
+        infinite_blocks = not infinite_blocks
+        if infinite_blocks:
+            print('Grutor mode enabled')
+        else:
+            print('Grutor mode disabled')
 
     # +++ Start of CAMERA ROTATIONS
 
@@ -572,6 +746,10 @@ while True:
     # Rotate camera based on how far up/down and left/right the user's mouse is
     if mouse_spinning and mouse_onscreen:
         rotate_camera(percent_x * userspin_rate, percent_y * userspin_rate)
+    elif dragging:
+        rotate_camera(queued_rot_x, queued_rot_y)
+        queued_rot_x = 0
+        queued_rot_y = 0
 
     # +++ Start of GRAPHICAL UPDATES
 
@@ -647,13 +825,11 @@ def mousemove_fun(event):
     ''' Runs when the mouse is moved on the canvas. According to the VPython documentation, it should run regardless 
         of whether the mouse button is being held down, but it doesn't.
     '''
-    global previous_mouse_pos
+    global previous_mouse_pos, queued_rot_x, queued_rot_y
     mouse_pos = vec(event.pageX, event.pageY, 0)
     delta_pos = previous_mouse_pos - mouse_pos
-    angle_x = -delta_pos.x / scene.width
-    angle_y = -delta_pos.y / scene.height
-    rotate_camera(angle_x, angle_y)
-    move_camera(player)
+    queued_rot_x += 5 * delta_pos.x / scene.width
+    queued_rot_y += 5 * delta_pos.y / scene.height
     previous_mouse_pos = mouse_pos
 
 def mouseup_fun(event):
@@ -785,16 +961,36 @@ def block_at(pos):
 
 def mine(pos):
     '''Attempts to mine the block at the given position. If the block is not already air, it is replaced with air'''
-    block_pos = nearest_block(pos, round)
+    block_pos = nearest_block(pos, floor)
     block = block_at(block_pos)
+    around = [block_at(nearest_block(vec(pos.x+1,pos.y,pos.z), floor)), 
+                block_at(nearest_block(vec(pos.x-1,pos.y,pos.z), floor)),
+                block_at(nearest_block(vec(pos.x,pos.y,pos.z+1), floor)), 
+                block_at(nearest_block(vec(pos.x,pos.y,pos.z-1), floor)), 
+                block_at(nearest_block(vec(pos.x,pos.y+1,pos.z), floor)), 
+                block_at(nearest_block(vec(pos.x,pos.y-1,pos.z), floor))]  
+    types = []
     if block.block_type == 'air':
         print('Cannot mine air')
-    else:
+    else: 
         print('Removed block of type', block.block_type)
         block.remove()
         add_inventory(block.block_type, 1)
 
-def add_inventory(block_type, num):
+        if block.block_type == 'cobblestone':
+            for i in around:
+                types += [i.block_type]
+            if 'lava' in types and 'water' in types:
+                print('Generated block of cobblestone')
+                add_inventory(block.block_type, 1)
+    
+    for i in around:
+        if i.block_type == 'water':
+            Block(nearest_block(i.pos, floor), 'water')
+        elif i.block_type == 'lava':
+            Block(nearest_block(i.pos, floor), 'lava')
+
+def add_inventory(block_type, num = 1):
     '''Add a block to the player's inventory'''
     first_unoccupied = 0
     for slot in range(1, 9):
@@ -807,16 +1003,17 @@ def add_inventory(block_type, num):
             first_unoccupied = slot
     
     if first_unoccupied != 0:
-        inventory[first_unoccupied] = (block_type, 1)
+        inventory[first_unoccupied] = (block_type, num)
 
 def get_from_inventory(slot):
     '''Take a block from the given slot in the player's inventory'''
     if slot in inventory:
         block_type, number = inventory[slot]
-        if number == 1:
-            del inventory[slot]
-        else:
-            inventory[slot] = [block_type, number - 1]
+        if not infinite_blocks:
+            if number == 1:
+                del inventory[slot]
+            else:
+                inventory[slot] = [block_type, number - 1]
         return block_type
     else:
         return 'air'
@@ -829,7 +1026,10 @@ def print_inventory():
         print('Your inventory contains')
         for slot in inventory:
             block_type, number = inventory[slot]
-            print(str(number) + ' x ' + block_type + ' in slot ' + str(slot))
+            if infinite_blocks:
+                print('Infinity x ' + block_type + ' in slot ' + str(slot))
+            else:
+                print(str(number) + ' x ' + block_type + ' in slot ' + str(slot))
     print('Slot ' + str(current_slot) + ' is selected')
         
 
@@ -846,7 +1046,7 @@ def get_local_blocks(hitbox, dt):
         for y in range(block_diff.y + 1):
             for z in range(block_diff.z + 1):
                 block = block_at(block_pos_0 + vec(x, y, z))
-                if block.block_type != 'air':
+                if block.solid:
                     blocks += [block]
     return blocks
 
@@ -872,11 +1072,11 @@ def get_collision_manifold(hitboxA, hitboxB, dt):
     return ray_vs_hitbox(hitboxA.pos, hitboxA.vel * dt, expanded_hitbox)
 
 def insertion_sort(L, lt):
-    """ Implementation of insertion sort given a less than comparator function. Using the key parameter in python's 
+    ''' Implementation of insertion sort given a less than comparator function. Using the key parameter in python's 
         built in sorted function doesn't seem to work in VPython. Solely used for sorting collision manifolds based
         on which collision occurs first. Since the actual number of blocks the player is colliding with at any point
         in time should be relatively small, insertion sort should be a good choice to quickly sort them.
-    """
+    '''
     for i in range(len(L)):
         # Element to be inserted into the part of the list behind it
         a = L[i]
@@ -913,7 +1113,7 @@ def resolve_collisions(hitboxA, hitboxes, dt):
             manifold_wrappers += [[manifold, hitboxB]]
     
     def comp_t_near(wrapperA, wrapperB):
-        """Helper function to compare the t_near values of two manifolds"""
+        '''Helper function to compare the t_near values of two manifolds'''
         return wrapperA[0][1] < wrapperB[0][1]
 
     # Sort manifolds by the ones corresponding to the hitbox closest to hitboxA
@@ -977,6 +1177,6 @@ def block_through(origin, direction, max_distance):
     direction = direction.norm()
     for i in range(max_distance / ds):
         block = block_at(nearest_block(origin + direction * ds * i, round))
-        if block.block_type != 'air':
+        if block.solid:
             return block
     return block
