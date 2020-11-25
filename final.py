@@ -75,9 +75,10 @@ class Block:
                 'water': texture = 'https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcR-ErVpce1X6Y7Z4bYIK9PJfLL4hh_R9nvbFg&usqp=CAU',
                 'wood': texture = 'https://i.imgur.com/n6J1Jhz.jpg',
                 'leaf': texture = 'https://i.imgur.com/E4ycyzv.jpg',
+                'gold': texture = 'https://i.imgur.com/tKRz1mN.jpg',
                 'grass_top': texture = {'file': 'https://lh3.googleusercontent.com/0Xh1P9-7QIXw2j-TM5lGIo5Vvtkq3UIwynD04RgngIOU-4KOy06ZONL93Ht4YyCXEVXojj5Xn-H1m6NHC4rmW-g=s400', 'place':['sides']},
                 'grass': texture = {'file':'https://lh3.googleusercontent.com/2ZdPa8KBDybnUudpc9yRmaCU3DYHH4SL7gxRTPwyk1oCn_1xCzntDLkb02MChMipFu-N3BzNAtXP2BCiwOl9WgM', 'place':['sides']}}
-    solid_map = {'dirt': True, 'air': False, 'water': False, 'lava': False, 'wood': True, 'grass': True, 'leaf': True, 'cobblestone': True}
+    solid_map = {'dirt': True, 'air': False, 'water': False, 'lava': False, 'wood': True, 'grass': True, 'leaf': True, 'cobblestone': True, 'gold': True}
     blocks = {}     # Map of grid positions to the blocks occupying them
     def __init__(self, pos, block_type, block_data = 0):
         # Align the block to a grid
@@ -268,14 +269,14 @@ class Entity:
     entities = []
     def __init__(self, pos, size, vel = vec(0, 0, 0), center_point = vec(0, 0, 0), k = 1):
         actual_pos = vec(0, 0, 0)
-        actual_pos.x = floor(pos.x) * Block.scale + Block.scale / 2
-        actual_pos.y = floor(pos.y) * Block.scale + Block.scale / 2
-        actual_pos.z = floor(pos.z) * Block.scale + Block.scale / 2
+        actual_pos.x = pos.x * Block.scale + Block.scale / 2
+        actual_pos.y = pos.y * Block.scale + Block.scale / 2
+        actual_pos.z = pos.z * Block.scale + Block.scale / 2
 
         self.center_point = vec(0, 0, 0)
-        self.center_point.x = floor(center_point.x) * Block.scale + Block.scale / 2
-        self.center_point.y = floor(center_point.y) * Block.scale + Block.scale / 2
-        self.center_point.z = floor(center_point.z) * Block.scale + Block.scale / 2
+        self.center_point.x = center_point.x * Block.scale + Block.scale / 2
+        self.center_point.y = center_point.y * Block.scale + Block.scale / 2
+        self.center_point.z = center_point.z * Block.scale + Block.scale / 2
 
         self.hitbox = Hitbox(actual_pos, size, vel)
         self.hitbox.last_pos = vec(actual_pos)
@@ -285,7 +286,8 @@ class Entity:
     
     def physics_update(self, dt):
         '''Update acceleration to point toward the center point'''
-        self.hitbox.accel = -self.k * (self.hitbox.pos - self.center_point)
+        pos_diff = self.hitbox.pos - self.center_point
+        self.hitbox.accel = -self.k * pos_diff
         self.hitbox.vel += self.hitbox.accel * dt
         self.hitbox.pos += self.hitbox.vel * dt
         self.sync_model()
@@ -314,9 +316,31 @@ class Entity:
 player = Player(vec(0, Block.scale, 0))
 tp_player(vec(1, 1, 1))
 
+# Create goal
+goal = Hitbox(pos = vec(2.5, 1.5, 162.5), size = vec(6, 1, 4))
+# box(pos = goal.pos, size = goal.size)
+
 # Create entity obstacles that try to push you off the map
 Entity(pos = vec(6, 1, 6), size = vec(1, 1, 1), center_point = vec(3, 1, 6), k = 3)
 Entity(pos = vec(2, 1, 8), size = vec(1, 1, 1), center_point = vec(2, 1, 11), k = 3)
+Entity(pos = vec(-2, 1, 35), size = vec(1, 1, 1), center_point = vec(0, 1, 35), k = 5)
+Entity(pos = vec(2, 1, 37), size = vec(1, 1, 1), center_point = vec(0, 1, 37), k = 5)
+Entity(pos = vec(-2, 1, 39), size = vec(1, 1, 1), center_point = vec(0, 1, 39), k = 5)
+Entity(pos = vec(2, 1, 41), size = vec(1, 1, 1), center_point = vec(0, 1, 41), k = 5)
+Entity(pos = vec(-2, 1, 43), size = vec(1, 1, 1), center_point = vec(0, 1, 43), k = 5)
+Entity(pos = vec(6, 1, 51), size = vec(2, 2, 2), vel = vec(0, 0, 10), center_point = vec(3, 1, 51), k = 10)
+Entity(pos = vec(6, 1, 51), size = vec(1, 1, 1), vel = vec(0, 0, -40), center_point = vec(4.5, 1, 51), k = 20)
+Entity(pos = vec(0, -4, 62), size = vec(1, 5, 1), vel = vec(0, 0, 3), center_point = vec(1, -4, 62), k = 9)
+Entity(pos = vec(1, -4, 23), size = vec(1, 1, 1), center_point = vec(3, -4, 23), k = 3)
+Entity(pos = vec(1, -1, 25), size = vec(1, 1, 1), center_point = vec(3, -1, 25), k = 3)
+Entity(pos = vec(-3, 0, 39), size = vec(1, 1, 1), center_point = vec(0, 0, 39), k = 3)
+Entity(pos = vec(3, 1, 54), size = vec(1, 1, 1), center_point = vec(6, 1, 54), k = 3)
+Entity(pos = vec(-1, -4, 61), size = vec(1, 1, 1), center_point = vec(1, -4, 61), k = 3)
+Entity(pos = vec(-1, 0, 62), size = vec(1, 1, 1), center_point = vec(1, 0, 62), k = 3)
+Entity(pos = vec(3, 0, 70), size = vec(1, 1, 1), center_point = vec(1, 0, 70), k = 3)
+Entity(pos = vec(1, 1, 80), size = vec(1, 1, 1), center_point = vec(1, 1, 78), k = 3)
+Entity(pos = vec(0, 1, 122), size = vec(1, 1, 1), center_point = vec(3, 1, 122), k = 3)
+Entity(pos = vec(0, 1, 130), size = vec(1, 1, 1), center_point = vec(3, 1, 130), k = 3)
 
 #island
 for x in range(7):
@@ -454,9 +478,49 @@ Block(vec(2,2,93), 'cobblestone')
 Block(vec(4,2,93), 'cobblestone')
 
 #floor:
-for x in range(-1,5):
-        for z in range(95,100):
+for x in range(1,4):
+        for z in range(95,99):
             Block(vec(x, 0, z), 'grass')
+            
+#up and down jumping
+Block(vec(3,0,101), 'cobblestone')
+Block(vec(3,-1,103), 'cobblestone')
+Block(vec(3,0,106), 'cobblestone')
+Block(vec(3,1,108), 'cobblestone')
+Block(vec(3,-1,110), 'cobblestone')
+Block(vec(3,0,112), 'cobblestone')
+Block(vec(3,-1,115), 'cobblestone')
+Block(vec(3,0,117), 'cobblestone')
+
+#building from side to side (hopefully)
+Block(vec(3,0,120), 'cobblestone')
+Block(vec(3,0,121), 'cobblestone')
+Block(vec(3,0,122), 'cobblestone')
+Block(vec(3,0,123), 'cobblestone')
+Block(vec(-1,0,124), 'cobblestone')
+Block(vec(-1,0,125), 'cobblestone')
+Block(vec(-1,0,126), 'cobblestone')
+Block(vec(-1,0,127), 'cobblestone')
+Block(vec(3,0,128), 'cobblestone')
+Block(vec(3,0,129), 'cobblestone')
+Block(vec(3,0,130), 'cobblestone')
+Block(vec(3,0,131), 'cobblestone')
+Block(vec(7,0,132), 'cobblestone')
+Block(vec(7,0,133), 'cobblestone')
+Block(vec(7,0,134), 'cobblestone')
+Block(vec(7,0,135), 'cobblestone')
+Block(vec(-1,0,136), 'cobblestone')
+Block(vec(-1,0,137), 'cobblestone')
+Block(vec(-1,0,138), 'cobblestone')
+Block(vec(-1,0,139), 'cobblestone')
+
+#towering and bridge
+Block(vec(3, -8, 141), 'cobblestone')
+
+#final island
+for x in range(-1,6):
+        for z in range(160,165):
+            Block(vec(x, 0, z), 'gold')
 
 # +++ Start of game loop section -- update the position of the player and other entities continuously
 
@@ -488,6 +552,7 @@ flying = False                              # Keeps track of whether the player 
 current_slot = 1                            # Keeps track of which slot of the player's inventory is currently selected
 queued_rot_x = 0                            # Keeps track of the amount of rotation in the x direction queued for the while loop by mousemove_fun
 queued_rot_y = 0                            # Keeps track of the amount of rotation in the y direction queued for the while loop by mousemove_fun
+has_won = False
 inventory = {1: ['dirt', 1], 2: ['water', 1], 3: ['lava', 1]}
 if first_person:
     scene.userzoom = False
@@ -563,6 +628,13 @@ while True:
 
     # Rotate the velocity back in the camera's direction
     player.hitbox.vel = rotate(player.hitbox.vel, angle = -camera_angle_xz, axis = scene.up)
+
+    # Check for the player colliding with the goal's hitbox
+    if not has_won:
+        colliding = hitbox_vs_hitbox(player.hitbox, goal)
+        if colliding:
+            print("You win!")
+            has_won = True
 
     # Check for and resolve collisions between the player and the entities
     for entity in Entity.entities:
