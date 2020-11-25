@@ -633,7 +633,7 @@ while True:
     if not has_won:
         colliding = hitbox_vs_hitbox(player.hitbox, goal)
         if colliding:
-            print("You win!")
+            print("Congragulations, you win!")
             has_won = True
 
     # Check for and resolve collisions between the player and the entities
@@ -751,10 +751,10 @@ while True:
         flying = not flying
         if flying:
             max_vel = 12 * Block.scale * vec(1, 1, 1)   # max_vel adjusted for flying
-            print('Instructor mode enabled')
+            print('Professor mode enabled')
         else:
             max_vel = 5 * Block.scale * vec(1, 14, 1)   # max_vel reset to non-flying value
-            print('Instructor mode disabled')
+            print('Professor mode disabled')
 
     # Check for the grutor_mode key
     if controls['grutor_mode'] and not last_controls['grutor_mode']:

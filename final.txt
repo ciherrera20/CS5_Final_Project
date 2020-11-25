@@ -56,6 +56,7 @@ First person view:
         - Dragging with LEFT mouse button
         - Arrow keys (slow rotation)
     2. Click in middle of screen if the camera gets stuck
+    3. The black cube in the middle of the screen indicates where the player is looking
 
 Third person view:
     1. Rotating the camera - Dragging with RIGHT mouse button
@@ -69,6 +70,15 @@ Third person view:
 
 * PROFESSOR Mode
     Flying is enabled. Controls include standard movement controls with space to fly up, and shift to fly down.
+
+
+--------
+| Tips |
+--------
+* Use a mouse
+* Its easier to break and place blocks in first person mode
+* The green moving obstacles only have collision detection on the sides, so you can jump into them to avoid them
+* Letting water and lava flow into each other makes infinite cobblestone
 
 --------------
 | Collisions |
