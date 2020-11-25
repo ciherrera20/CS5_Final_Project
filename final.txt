@@ -1,0 +1,26 @@
+Christopher Herrera and Olivia Yin
+
+Project:
+VPython
+
+Description:
+Our game is a minecraft-style building game in which the player starts on an island in the sky, collects resources, and traverses an obstacle course to get to a goal on another island. The player is able to break blocks to collect building materials which will make it easier to get to the goal. Alternatively, they could choose to not spend time collecting resources and risk falling and dying by jumping through the obstacle course.
+
+URL:
+https://www.glowscript.org/#/user/ciherrera/folder/MyPrograms/program/final
+
+Instructions:
+Movement controls:
+The WASD keys are to move around and the space bar is to jump. 
+
+Camera controls:
+The game starts off in first person mode, but this can be toggled with the 'v' key. The game can be paused and unpaused with the escape key. The camera is controlled in a couple different ways depending on which view the player is in. In first person mode, moving the mouse away from the center of the screen towards the edges rotates the camera toward the mouse, getting faster as the mouse gets closer to the edge. The second way is by clicking and dragging the mouse with the left mouse button, which will rotate the view. The third is with the arrow keys for very slow rotations. Sometimes, the camera can get stuck in an orientation. This can be fixed by clicking near the middle of the screen. In third person mode, the camera is controlled by clicking and dragging with the right mouse button instead of the left, and can be zoomed with the mouse scroll wheel.
+
+Other controls:
+Pressing the 'q' key breaks the block being looked at. When a block is broken, it goes straight into the player's inventory, meaning it can be placed later. The player's inventory has 9 slots, and only one type of block can be in any slot at a given time. Pressing the number keys 1-9 will switch to the corresponding inventory slot. Pressing the 'p' key prints the contents of the player's inventory as well as the currently selected slot. Pressing the 'e' key places a block from the player's inventory against the face of the block being looked at.
+
+Special modes:
+Pressing g will toggle grutor mode in which the blocks in a player's inventory are not used up when placed, allowing the player to place an infinite number of blocks. Pressing i will toggle professor mode, which is even cheatier than grutor mode. It disables gravity, allowing the player to fly. The player's height can be controlled with the space bar to go up and the shift key to go down.
+
+Collisions:
+Our game has three types of collisions. The first is linear collision detection and resolution between axis aligned bounding boxes. The second is point collision detection between rays and axis aligned bounding boxes for the simple ray tracing algorithm used to detect which block the player is looking at. The third is a kind of combination of linear collision detection and spherical collision resolution used for the moving obstacles in the course.

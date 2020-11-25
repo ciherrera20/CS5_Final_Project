@@ -314,8 +314,9 @@ class Entity:
 player = Player(vec(0, Block.scale, 0))
 tp_player(vec(1, 1, 1))
 
+# Create entity obstacles that try to push you off the map
 Entity(pos = vec(6, 1, 6), size = vec(1, 1, 1), center_point = vec(3, 1, 6), k = 3)
-Entity(pos = vec(2, 1, 9), size = vec(1, 1, 1), vel = vec(0, 0, 0), center_point = vec(2, 1, 11), k = 3)
+Entity(pos = vec(2, 1, 8), size = vec(1, 1, 1), center_point = vec(2, 1, 11), k = 3)
 
 #island
 for x in range(7):
@@ -501,7 +502,7 @@ else:
 cursor = box(size = vec(0.01, 0.01, 0.01), color = color.black, emissive = True)
 
 # Dictionary mapping a control to whether it is active. Updated by keyboard events
-controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'descend', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'toggle_pause', 'grutor_mode', 'instructor_mode']}
+controls = {control: False for control in ['up', 'down', 'left', 'right', 'jump', 'descend', 'camera_up', 'camera_down', 'camera_left', 'camera_right', 'mine', 'place', 'toggle_view', 'print_inventory', 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'toggle_pause', 'grutor_mode', 'professor_mode']}
 last_controls = {key: controls[key] for key in controls}
 
 # This is the 'event loop' or 'animation loop'
@@ -673,8 +674,8 @@ while True:
             print(nearest_block(player.hitbox.pos - vec(0, 0.5, 0), round))
             paused = True
 
-    # Toggle instructor mode
-    if controls['instructor_mode'] and not last_controls['instructor_mode']:
+    # Toggle professor mode
+    if controls['professor_mode'] and not last_controls['professor_mode']:
         flying = not flying
         if flying:
             max_vel = 12 * Block.scale * vec(1, 1, 1)   # max_vel adjusted for flying
@@ -808,7 +809,7 @@ def update_controls(key, pressed):
     elif key in 'gG':
         controls['grutor_mode'] = pressed
     elif key in 'iI':
-        controls['instructor_mode'] = pressed
+        controls['professor_mode'] = pressed
     for i in range(1, 9):
         if key == str(i):
             controls['slot' + str(i)] = pressed
